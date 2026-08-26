@@ -11,6 +11,7 @@ import {
   Sparkles,
   Sun,
   Table2,
+  Users2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/table", label: "Table", icon: Table2 },
   { href: "/board", label: "Board", icon: KanbanSquare },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+  { href: "/team", label: "Team", icon: Users2 },
 ];
 
 export function Sidebar({

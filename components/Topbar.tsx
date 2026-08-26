@@ -6,13 +6,17 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { MenuItem, Popover } from "./Popover";
+import { ViewSwitcher } from "./ViewSwitcher";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/my-day": { title: "My Day", subtitle: "Your tasks, by urgency and due date" },
   "/table": { title: "Table", subtitle: "Dense grid — inline & bulk edit" },
   "/board": { title: "Board", subtitle: "Kanban by status" },
   "/timeline": { title: "Timeline", subtitle: "Due dates & dependencies" },
+  "/team": { title: "Team", subtitle: "Members, roles & reporting" },
 };
+
+const VIEW_ROUTES = ["/my-day", "/table", "/board", "/timeline"];
 
 export function Topbar() {
   const pathname = usePathname();
@@ -24,7 +28,9 @@ export function Topbar() {
   const addTask = useStore((s) => s.addTask);
   const openDetail = useStore((s) => s.openDetail);
 
-  const showProjectFilter = pathname !== "/my-day";
+  const showProjectFilter =
+    pathname !== "/my-day" && pathname !== "/team";
+  const showSwitcher = VIEW_ROUTES.includes(pathname);
   const active = projects.find((p) => p.id === activeProject);
 
   const handleNew = () => {
@@ -40,6 +46,12 @@ export function Topbar() {
         </h1>
         <p className="mt-1 truncate text-xs text-faint">{meta.subtitle}</p>
       </div>
+
+      {showSwitcher && (
+        <div className="hidden md:block">
+          <ViewSwitcher />
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         {showProjectFilter && (
@@ -120,10 +132,12 @@ export function Topbar() {
           </span>
         </button>
 
-        <button onClick={handleNew} className="btn-primary gap-1.5">
-          <Plus className="h-4 w-4" />
-          New task
-        </button>
+        {pathname !== "/team" && (
+          <button onClick={handleNew} className="btn-primary gap-1.5">
+            <Plus className="h-4 w-4" />
+            New task
+          </button>
+        )}
       </div>
     </header>
   );

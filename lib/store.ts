@@ -60,6 +60,10 @@ interface State {
   moveTaskStatus: (id: string, status: Status, order?: number) => void;
   addTask: (partial: Partial<Task> & { title: string }) => string;
 
+  addMember: (partial?: Partial<TeamMember>) => string;
+  updateMember: (id: string, patch: Partial<TeamMember>) => void;
+  removeMember: (id: string) => void;
+
   toggleSelect: (id: string) => void;
   selectMany: (ids: string[]) => void;
   clearSelection: () => void;
@@ -79,6 +83,12 @@ let taskSeq = tasksData.length;
 function nextTaskId() {
   taskSeq += 1;
   return `t_local_${taskSeq}`;
+}
+
+let memberSeq = membersData.length;
+function nextMemberId() {
+  memberSeq += 1;
+  return `u_local_${memberSeq}`;
 }
 
 // A fixed clock so mock timestamps stay deterministic.
@@ -281,6 +291,48 @@ export const useStore = create<State>((set, get) => ({
     });
     return id;
   },
+
+  addMember: (partial) => {
+    const id = nextMemberId();
+    set((state) => {
+      const member: TeamMember = {
+        id,
+        name: partial?.name ?? "New member",
+        email: partial?.email ?? "",
+        avatar: null,
+        role: partial?.role ?? "member",
+        lead_id: partial?.lead_id ?? null,
+        slack_user_id: partial?.slack_user_id ?? "",
+        timezone: partial?.timezone ?? "Asia/Kolkata",
+      };
+      return { members: [...state.members, member] };
+    });
+    return id;
+  },
+
+  updateMember: (id, patch) =>
+    set((state) => {
+      let members = state.members.map((m) =>
+        m.id === id ? { ...m, ...patch } : m
+      );
+      // If someone is no longer a team lead, detach their direct reports.
+      if (patch.role && patch.role !== "team_lead") {
+        members = members.map((m) =>
+          m.lead_id === id ? { ...m, lead_id: null } : m
+        );
+      }
+      return { members };
+    }),
+
+  removeMember: (id) =>
+    set((state) => ({
+      members: state.members
+        .filter((m) => m.id !== id)
+        .map((m) => (m.lead_id === id ? { ...m, lead_id: null } : m)),
+      tasks: state.tasks.map((t) =>
+        t.assignee_id === id ? { ...t, assignee_id: null } : t
+      ),
+    })),
 
   toggleSelect: (id) =>
     set((state) => ({

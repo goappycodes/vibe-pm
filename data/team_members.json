@@ -5,6 +5,7 @@
     "email": "ritesh@appycodes.com",
     "avatar": null,
     "role": "admin",
+    "lead_id": null,
     "slack_user_id": "U01RITESH",
     "timezone": "Asia/Kolkata"
   },
@@ -14,6 +15,7 @@
     "email": "priya@appycodes.com",
     "avatar": null,
     "role": "team_lead",
+    "lead_id": "u1",
     "slack_user_id": "U02PRIYA",
     "timezone": "Asia/Kolkata"
   },
@@ -23,6 +25,7 @@
     "email": "arjun@appycodes.com",
     "avatar": null,
     "role": "team_lead",
+    "lead_id": "u1",
     "slack_user_id": "U03ARJUN",
     "timezone": "Asia/Kolkata"
   },
@@ -32,6 +35,7 @@
     "email": "sana@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u2",
     "slack_user_id": "U04SANA",
     "timezone": "Asia/Kolkata"
   },
@@ -41,6 +45,7 @@
     "email": "rohan@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u2",
     "slack_user_id": "U05ROHAN",
     "timezone": "Asia/Kolkata"
   },
@@ -50,6 +55,7 @@
     "email": "neha@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u2",
     "slack_user_id": "U06NEHA",
     "timezone": "Asia/Kolkata"
   },
@@ -59,6 +65,7 @@
     "email": "vikram@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u2",
     "slack_user_id": "U07VIKRAM",
     "timezone": "Asia/Kolkata"
   },
@@ -68,6 +75,7 @@
     "email": "ananya@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u2",
     "slack_user_id": "U08ANANYA",
     "timezone": "Asia/Kolkata"
   },
@@ -77,6 +85,7 @@
     "email": "karan@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u3",
     "slack_user_id": "U09KARAN",
     "timezone": "Asia/Kolkata"
   },
@@ -86,6 +95,7 @@
     "email": "divya@appycodes.com",
     "avatar": null,
     "role": "member",
+    "lead_id": "u3",
     "slack_user_id": "U10DIVYA",
     "timezone": "Asia/Kolkata"
   }

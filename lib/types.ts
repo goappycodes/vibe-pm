@@ -18,6 +18,7 @@ export interface TeamMember {
   email: string;
   avatar: string | null;
   role: Role;
+  lead_id: string | null; // the team_lead this member reports to
   slack_user_id: string;
   timezone: string;
 }
@@ -75,6 +76,29 @@ export interface ActivityEntry {
   source: UpdateSource;
   at: string;
 }
+
+export const ROLES: Role[] = ["admin", "team_lead", "member"];
+
+export const ROLE_META: Record<
+  Role,
+  { label: string; className: string }
+> = {
+  admin: {
+    label: "Admin",
+    className:
+      "border-transparent bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  },
+  team_lead: {
+    label: "Team lead",
+    className:
+      "border-transparent bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  },
+  member: {
+    label: "Member",
+    className:
+      "border-transparent bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300",
+  },
+};
 
 export const STATUSES: Status[] = [
   "backlog",
