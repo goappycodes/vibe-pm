@@ -1,0 +1,155 @@
+"use client";
+
+import { useStore } from "@/lib/store";
+import { PROJECT_COLORS } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  CalendarCheck2,
+  GanttChartSquare,
+  KanbanSquare,
+  Moon,
+  Sparkles,
+  Sun,
+  Table2,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Avatar } from "./Avatar";
+
+const NAV = [
+  { href: "/my-day", label: "My Day", icon: CalendarCheck2 },
+  { href: "/table", label: "Table", icon: Table2 },
+  { href: "/board", label: "Board", icon: KanbanSquare },
+  { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+];
+
+export function Sidebar({
+  theme,
+  toggleTheme,
+}: {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+}) {
+  const pathname = usePathname();
+  const projects = useStore((s) => s.projects);
+  const tasks = useStore((s) => s.tasks);
+  const setActiveProject = useStore((s) => s.setActiveProject);
+  const activeProject = useStore((s) => s.activeProject);
+  const currentUser = useStore((s) =>
+    s.members.find((m) => m.id === s.currentUserId)
+  );
+
+  const openCount = (projectId: string) =>
+    tasks.filter((t) => t.project_id === projectId && t.status !== "done")
+      .length;
+
+  return (
+    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+      <div className="flex items-center gap-2 px-4 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-fg">
+          <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
+        </div>
+        <div className="leading-tight">
+          <div className="text-sm font-semibold text-fg">Vibe PM</div>
+          <div className="text-[11px] text-faint">Appycodes</div>
+        </div>
+      </div>
+
+      <nav className="px-2 pt-1">
+        {NAV.map((item) => {
+          const active = pathname === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                active
+                  ? "bg-accent-soft text-accent"
+                  : "text-muted hover:bg-surface-2 hover:text-fg"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-5 px-4">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+            Projects
+          </span>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto px-2">
+        <button
+          onClick={() => setActiveProject("all")}
+          className={cn(
+            "flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+            activeProject === "all"
+              ? "bg-surface-2 text-fg"
+              : "text-muted hover:bg-surface-2 hover:text-fg"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-faint" />
+            All projects
+          </span>
+        </button>
+        {projects.map((p) => {
+          const c = PROJECT_COLORS[p.color] ?? PROJECT_COLORS.indigo;
+          const active = activeProject === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => setActiveProject(p.id)}
+              className={cn(
+                "group flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+                active
+                  ? "bg-surface-2 text-fg"
+                  : "text-muted hover:bg-surface-2 hover:text-fg"
+              )}
+            >
+              <span className="flex items-center gap-2 truncate">
+                <span className={cn("h-2 w-2 shrink-0 rounded-full", c.dot)} />
+                <span className="truncate">{p.name}</span>
+              </span>
+              <span className="text-[11px] tabular-nums text-faint">
+                {openCount(p.id)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-border p-2">
+        <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+          <Avatar member={currentUser} size="md" />
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-sm font-medium text-fg">
+              {currentUser?.name}
+            </div>
+            <div className="truncate text-[11px] capitalize text-faint">
+              {currentUser?.role.replace("_", " ")}
+            </div>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="btn-ghost h-8 w-8 p-0"
+            title="Toggle theme"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}

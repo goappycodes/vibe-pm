@@ -1,0 +1,92 @@
+[
+  {
+    "id": "u1",
+    "name": "Ritesh Agarwal",
+    "email": "ritesh@appycodes.com",
+    "avatar": null,
+    "role": "admin",
+    "slack_user_id": "U01RITESH",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u2",
+    "name": "Priya Nair",
+    "email": "priya@appycodes.com",
+    "avatar": null,
+    "role": "team_lead",
+    "slack_user_id": "U02PRIYA",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u3",
+    "name": "Arjun Mehta",
+    "email": "arjun@appycodes.com",
+    "avatar": null,
+    "role": "team_lead",
+    "slack_user_id": "U03ARJUN",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u4",
+    "name": "Sana Kapoor",
+    "email": "sana@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U04SANA",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u5",
+    "name": "Rohan Das",
+    "email": "rohan@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U05ROHAN",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u6",
+    "name": "Neha Sharma",
+    "email": "neha@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U06NEHA",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u7",
+    "name": "Vikram Reddy",
+    "email": "vikram@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U07VIKRAM",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u8",
+    "name": "Ananya Iyer",
+    "email": "ananya@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U08ANANYA",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u9",
+    "name": "Karan Malhotra",
+    "email": "karan@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U09KARAN",
+    "timezone": "Asia/Kolkata"
+  },
+  {
+    "id": "u10",
+    "name": "Divya Menon",
+    "email": "divya@appycodes.com",
+    "avatar": null,
+    "role": "member",
+    "slack_user_id": "U10DIVYA",
+    "timezone": "Asia/Kolkata"
+  }
+]

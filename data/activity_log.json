@@ -1,0 +1,12 @@
+[
+  { "id": "a1", "task_id": "t2", "actor_id": "u1", "field": "status", "from": "in_progress", "to": "done", "source": "claude", "at": "2026-08-21T17:30:00Z" },
+  { "id": "a2", "task_id": "t1", "actor_id": "u1", "field": "status", "from": "todo", "to": "in_progress", "source": "claude", "at": "2026-08-25T14:20:00Z" },
+  { "id": "a3", "task_id": "t15", "actor_id": "u9", "field": "status", "from": "todo", "to": "in_progress", "source": "slack", "at": "2026-08-22T10:00:00Z" },
+  { "id": "a4", "task_id": "t17", "actor_id": "u3", "field": "status", "from": "todo", "to": "blocked", "source": "ui", "at": "2026-08-25T09:00:00Z" },
+  { "id": "a5", "task_id": "t12", "actor_id": "u7", "field": "status", "from": "in_progress", "to": "blocked", "source": "slack", "at": "2026-08-25T10:00:00Z" },
+  { "id": "a6", "task_id": "t21", "actor_id": "u4", "field": "status", "from": "in_progress", "to": "in_review", "source": "ui", "at": "2026-08-26T08:45:00Z" },
+  { "id": "a7", "task_id": "t38", "actor_id": "u10", "field": "status", "from": "in_progress", "to": "in_review", "source": "slack", "at": "2026-08-26T09:15:00Z" },
+  { "id": "a8", "task_id": "t8", "actor_id": "u1", "field": "due_date", "from": "2026-08-24", "to": "2026-08-26", "source": "ui", "at": "2026-08-26T07:00:00Z" },
+  { "id": "a9", "task_id": "t20", "actor_id": "u9", "field": "status", "from": "in_review", "to": "done", "source": "ui", "at": "2026-08-19T16:00:00Z" },
+  { "id": "a10", "task_id": "t27", "actor_id": "u3", "field": "status", "from": "todo", "to": "in_progress", "source": "claude", "at": "2026-08-20T09:00:00Z" }
+]

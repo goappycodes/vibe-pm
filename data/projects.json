@@ -1,0 +1,47 @@
+[
+  {
+    "id": "p1",
+    "name": "Vibe PM",
+    "owner_id": "u1",
+    "status": "active",
+    "color": "indigo",
+    "slack_channel_id": "proj-vibe-pm",
+    "target_date": "2026-10-15"
+  },
+  {
+    "id": "p2",
+    "name": "Appy Mobile App",
+    "owner_id": "u2",
+    "status": "active",
+    "color": "emerald",
+    "slack_channel_id": "proj-appy-mobile",
+    "target_date": "2026-09-30"
+  },
+  {
+    "id": "p3",
+    "name": "Payments Revamp",
+    "owner_id": "u3",
+    "status": "active",
+    "color": "amber",
+    "slack_channel_id": "proj-payments",
+    "target_date": "2026-09-18"
+  },
+  {
+    "id": "p4",
+    "name": "Website Redesign",
+    "owner_id": "u2",
+    "status": "active",
+    "color": "rose",
+    "slack_channel_id": "proj-website",
+    "target_date": "2026-09-10"
+  },
+  {
+    "id": "p5",
+    "name": "Data Platform",
+    "owner_id": "u3",
+    "status": "active",
+    "color": "sky",
+    "slack_channel_id": "proj-data-platform",
+    "target_date": "2026-11-05"
+  }
+]

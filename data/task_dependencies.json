@@ -1,0 +1,13 @@
+[
+  { "task_id": "t6", "depends_on_task_id": "t1", "type": "finish_start" },
+  { "task_id": "t7", "depends_on_task_id": "t1", "type": "finish_start" },
+  { "task_id": "t8", "depends_on_task_id": "t1", "type": "blocks" },
+  { "task_id": "t3", "depends_on_task_id": "t1", "type": "finish_start" },
+  { "task_id": "t17", "depends_on_task_id": "t15", "type": "blocks" },
+  { "task_id": "t16", "depends_on_task_id": "t15", "type": "finish_start" },
+  { "task_id": "t12", "depends_on_task_id": "t13", "type": "finish_start" },
+  { "task_id": "t34", "depends_on_task_id": "t4", "type": "finish_start" },
+  { "task_id": "t28", "depends_on_task_id": "t27", "type": "finish_start" },
+  { "task_id": "t29", "depends_on_task_id": "t27", "type": "finish_start" },
+  { "task_id": "t38", "depends_on_task_id": "t35", "type": "blocks" }
+]
