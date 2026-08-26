@@ -41,8 +41,11 @@ export function Popover({
   const toggle = useCallback(() => setOpen((o) => !o), []);
 
   const reposition = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
+    const wrap = triggerRef.current;
+    if (!wrap) return;
+    // The wrapper uses `display: contents` (no box of its own), so measure the
+    // actual trigger element instead — a contents node reports an empty rect.
+    const el = (wrap.firstElementChild as HTMLElement | null) ?? wrap;
     const r = el.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
