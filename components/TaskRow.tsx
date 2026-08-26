@@ -3,9 +3,8 @@
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Clock } from "lucide-react";
 import { Avatar } from "./Avatar";
-import { DueBadge, ProjectBadge, UrgencyBadge } from "./Badges";
+import { DueBadge, PointsBadge, ProjectBadge, UrgencyBadge } from "./Badges";
 import { StatusPicker } from "./Pickers";
 
 export function TaskRow({
@@ -50,11 +49,10 @@ export function TaskRow({
         )}
       </button>
 
-      {task.eta_hours ? (
-        <span className="hidden items-center gap-1 text-xs text-faint md:flex">
-          <Clock className="h-3.5 w-3.5" />
-          {task.eta_hours}h
-        </span>
+      {task.story_points != null ? (
+        <div className="hidden md:block">
+          <PointsBadge points={task.story_points} />
+        </div>
       ) : null}
 
       <div className="hidden sm:block">

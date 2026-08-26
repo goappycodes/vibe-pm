@@ -1,7 +1,12 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
-import { DueBadge, ProjectBadge, UrgencyBadge } from "@/components/Badges";
+import {
+  DueBadge,
+  PointsBadge,
+  ProjectBadge,
+  UrgencyBadge,
+} from "@/components/Badges";
 import { useStore } from "@/lib/store";
 import {
   STATUSES,
@@ -21,7 +26,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { Clock, Link2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export default function BoardPage() {
@@ -173,12 +178,7 @@ function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5 text-xs text-faint">
           <DueBadge date={task.due_date} />
-          {task.eta_hours ? (
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              {task.eta_hours}h
-            </span>
-          ) : null}
+          <PointsBadge points={task.story_points} />
           {depCount > 0 && (
             <span className="flex items-center gap-1" title="Has dependencies">
               <Link2 className="h-3.5 w-3.5" />

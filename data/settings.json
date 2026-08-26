@@ -1,0 +1,25 @@
+{
+  "slack": {
+    "connected": true,
+    "workspace": "appycodes.slack.com",
+    "team_name": "Appycodes",
+    "channels": [
+      { "id": "C001", "name": "proj-vibe-pm" },
+      { "id": "C002", "name": "proj-appy-mobile" },
+      { "id": "C003", "name": "proj-payments" },
+      { "id": "C004", "name": "proj-website" },
+      { "id": "C005", "name": "proj-data-platform" },
+      { "id": "C006", "name": "general" },
+      { "id": "C007", "name": "standups" },
+      { "id": "C008", "name": "design" },
+      { "id": "C009", "name": "engineering" },
+      { "id": "C010", "name": "clients" }
+    ]
+  },
+  "general": {
+    "org_name": "Appycodes",
+    "default_view": "/my-day",
+    "week_start": "monday",
+    "timezone": "Asia/Kolkata"
+  }
+}

@@ -1,0 +1,257 @@
+"use client";
+
+import { MenuItem, Popover } from "@/components/Popover";
+import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
+import {
+  Check,
+  Hash,
+  Lock,
+  Plug,
+  Building2,
+  Circle,
+  CheckCircle2,
+} from "lucide-react";
+
+const VIEW_OPTIONS = [
+  { v: "/my-day", label: "My Day" },
+  { v: "/table", label: "Table" },
+  { v: "/board", label: "Board" },
+  { v: "/timeline", label: "Timeline" },
+];
+
+export default function SettingsPage() {
+  const settings = useStore((s) => s.settings);
+  const setSlackConnected = useStore((s) => s.setSlackConnected);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const currentUser = useStore((s) =>
+    s.members.find((m) => m.id === s.currentUserId)
+  );
+  const isAdmin = currentUser?.role === "admin";
+
+  const setGeneral = (patch: Partial<typeof settings.general>) =>
+    updateSettings({ general: { ...settings.general, ...patch } });
+
+  const slack = settings.slack;
+
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-2xl px-6 py-6">
+        {!isAdmin && (
+          <div className="mb-4 flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-muted">
+            <Lock className="h-3.5 w-3.5" />
+            Settings are read-only for your role.
+          </div>
+        )}
+
+        {/* Slack */}
+        <section className="card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg",
+                  slack.connected
+                    ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"
+                    : "bg-surface-2 text-faint"
+                )}
+              >
+                <Plug className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-fg">Slack</h2>
+                <p className="text-xs text-faint">
+                  {slack.connected
+                    ? "Board changes echo to Slack; updates flow back."
+                    : "Connect your workspace to sync tasks both ways."}
+                </p>
+              </div>
+            </div>
+            {slack.connected ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:bg-emerald-500/10">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Connected
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-faint">
+                <Circle className="h-3.5 w-3.5" />
+                Not connected
+              </span>
+            )}
+          </div>
+
+          {slack.connected && (
+            <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-border bg-surface-2/50 p-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-faint">
+                  Workspace
+                </div>
+                <div className="mt-0.5 text-sm font-medium text-fg">
+                  {slack.workspace}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-faint">
+                  Team
+                </div>
+                <div className="mt-0.5 text-sm font-medium text-fg">
+                  {slack.team_name}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {slack.connected && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[11px] uppercase tracking-wide text-faint">
+                {slack.channels.length} channels available
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {slack.channels.map((ch) => (
+                  <span
+                    key={ch.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 text-xs text-muted"
+                  >
+                    <Hash className="h-3 w-3 text-faint" />
+                    {ch.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isAdmin && (
+            <div className="mt-4 flex justify-end">
+              {slack.connected ? (
+                <button
+                  onClick={() => setSlackConnected(false)}
+                  className="btn-outline text-rose-600"
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  onClick={() => setSlackConnected(true)}
+                  className="btn-primary gap-1.5"
+                >
+                  <Plug className="h-4 w-4" />
+                  Connect Slack
+                </button>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* General */}
+        <section className="card mt-4 p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-faint" />
+            <h2 className="text-sm font-semibold text-fg">General</h2>
+          </div>
+
+          <Row label="Organization name">
+            {isAdmin ? (
+              <input
+                value={settings.general.org_name}
+                onChange={(e) => setGeneral({ org_name: e.target.value })}
+                className="input max-w-xs"
+              />
+            ) : (
+              <span className="text-sm text-fg">{settings.general.org_name}</span>
+            )}
+          </Row>
+
+          <Row label="Default view">
+            <Popover
+              width={160}
+              align="end"
+              trigger={({ toggle }) => (
+                <button
+                  onClick={isAdmin ? toggle : undefined}
+                  className={cn("btn-outline", !isAdmin && "cursor-default")}
+                >
+                  {VIEW_OPTIONS.find((v) => v.v === settings.general.default_view)
+                    ?.label ?? "My Day"}
+                </button>
+              )}
+            >
+              {(close) => (
+                <div className="py-1">
+                  {VIEW_OPTIONS.map((v) => (
+                    <MenuItem
+                      key={v.v}
+                      active={v.v === settings.general.default_view}
+                      onClick={() => {
+                        setGeneral({ default_view: v.v });
+                        close();
+                      }}
+                    >
+                      <span className="flex-1">{v.label}</span>
+                      {v.v === settings.general.default_view && (
+                        <Check className="h-3.5 w-3.5 text-accent" />
+                      )}
+                    </MenuItem>
+                  ))}
+                </div>
+              )}
+            </Popover>
+          </Row>
+
+          <Row label="Week starts on">
+            <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+              {(["sunday", "monday"] as const).map((d) => (
+                <button
+                  key={d}
+                  disabled={!isAdmin}
+                  onClick={() => setGeneral({ week_start: d })}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-sm capitalize transition-colors",
+                    settings.general.week_start === d
+                      ? "bg-accent text-accent-fg"
+                      : "text-muted hover:text-fg"
+                  )}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </Row>
+
+          <Row label="Timezone" last>
+            {isAdmin ? (
+              <input
+                value={settings.general.timezone}
+                onChange={(e) => setGeneral({ timezone: e.target.value })}
+                className="input max-w-xs"
+              />
+            ) : (
+              <span className="text-sm text-fg">{settings.general.timezone}</span>
+            )}
+          </Row>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  children,
+  last,
+}: {
+  label: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 py-3",
+        !last && "border-b border-border"
+      )}
+    >
+      <div className="text-sm text-muted">{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}

@@ -14,13 +14,19 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/board": { title: "Board", subtitle: "Kanban by status" },
   "/timeline": { title: "Timeline", subtitle: "Due dates & dependencies" },
   "/team": { title: "Team", subtitle: "Members, roles & reporting" },
+  "/projects": { title: "Projects", subtitle: "Manage projects, clients & channels" },
+  "/clients": { title: "Clients", subtitle: "Client master" },
+  "/settings": { title: "Settings", subtitle: "Slack & workspace preferences" },
 };
 
 const VIEW_ROUTES = ["/my-day", "/table", "/board", "/timeline"];
+const FILTER_ROUTES = ["/table", "/board", "/timeline"];
 
 export function Topbar() {
   const pathname = usePathname();
-  const meta = TITLES[pathname] ?? { title: "Vibe PM", subtitle: "" };
+  const meta = pathname.startsWith("/member")
+    ? { title: "Team member", subtitle: "Workload, projects & tasks" }
+    : TITLES[pathname] ?? { title: "Vibe PM", subtitle: "" };
   const projects = useStore((s) => s.projects);
   const activeProject = useStore((s) => s.activeProject);
   const setActiveProject = useStore((s) => s.setActiveProject);
@@ -28,9 +34,9 @@ export function Topbar() {
   const addTask = useStore((s) => s.addTask);
   const openDetail = useStore((s) => s.openDetail);
 
-  const showProjectFilter =
-    pathname !== "/my-day" && pathname !== "/team";
+  const showProjectFilter = FILTER_ROUTES.includes(pathname);
   const showSwitcher = VIEW_ROUTES.includes(pathname);
+  const showNewTask = VIEW_ROUTES.includes(pathname);
   const active = projects.find((p) => p.id === activeProject);
 
   const handleNew = () => {
@@ -132,7 +138,7 @@ export function Topbar() {
           </span>
         </button>
 
-        {pathname !== "/team" && (
+        {showNewTask && (
           <button onClick={handleNew} className="btn-primary gap-1.5">
             <Plus className="h-4 w-4" />
             New task

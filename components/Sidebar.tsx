@@ -4,10 +4,13 @@ import { useStore } from "@/lib/store";
 import { PROJECT_COLORS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
+  Building2,
   CalendarCheck2,
+  Folder,
   GanttChartSquare,
   KanbanSquare,
   Moon,
+  Settings,
   Sparkles,
   Sun,
   Table2,
@@ -22,7 +25,13 @@ const NAV = [
   { href: "/table", label: "Table", icon: Table2 },
   { href: "/board", label: "Board", icon: KanbanSquare },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+];
+
+const MANAGE = [
+  { href: "/projects", label: "Projects", icon: Folder },
+  { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/team", label: "Team", icon: Users2 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar({
@@ -82,7 +91,7 @@ export function Sidebar({
       <div className="mt-5 px-4">
         <div className="mb-1 flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">
-            Projects
+            Filter by project
           </span>
         </div>
       </div>
@@ -123,6 +132,33 @@ export function Sidebar({
                 {openCount(p.id)}
               </span>
             </button>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-border px-2 py-2">
+        <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">
+          Manage
+        </div>
+        {MANAGE.map((item) => {
+          const active =
+            pathname === item.href ||
+            (item.href === "/team" && pathname.startsWith("/member"));
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-accent-soft text-accent"
+                  : "text-muted hover:bg-surface-2 hover:text-fg"
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {item.label}
+            </Link>
           );
         })}
       </div>

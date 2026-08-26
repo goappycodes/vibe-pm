@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import type {
   ActivityEntry,
+  AppSettings,
+  Client,
   Project,
   Status,
   Task,
@@ -19,6 +21,8 @@ import projectsData from "@/data/projects.json";
 import depsData from "@/data/task_dependencies.json";
 import updatesData from "@/data/updates.json";
 import activityData from "@/data/activity_log.json";
+import clientsData from "@/data/clients.json";
+import settingsData from "@/data/settings.json";
 
 export type ProjectFilter = string | "all";
 
@@ -27,7 +31,7 @@ interface TaskPatch {
   description?: string;
   assignee_id?: string | null;
   due_date?: string | null;
-  eta_hours?: number | null;
+  story_points?: number | null;
   status?: Status;
   urgency?: Urgency;
   project_id?: string;
@@ -37,9 +41,11 @@ interface State {
   tasks: Task[];
   members: TeamMember[];
   projects: Project[];
+  clients: Client[];
   dependencies: TaskDependency[];
   updates: Update[];
   activity: ActivityEntry[];
+  settings: AppSettings;
 
   currentUserId: string;
   activeProject: ProjectFilter;
@@ -50,6 +56,7 @@ interface State {
   // derived helpers
   memberById: (id: string | null | undefined) => TeamMember | undefined;
   projectById: (id: string | null | undefined) => Project | undefined;
+  clientById: (id: string | null | undefined) => Client | undefined;
   dependenciesOf: (taskId: string) => TaskDependency[];
   dependentsOf: (taskId: string) => TaskDependency[];
 
@@ -63,6 +70,17 @@ interface State {
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
   removeMember: (id: string) => void;
+
+  addProject: (partial?: Partial<Project>) => string;
+  updateProject: (id: string, patch: Partial<Project>) => void;
+  removeProject: (id: string) => void;
+
+  addClient: (partial?: Partial<Client>) => string;
+  updateClient: (id: string, patch: Partial<Client>) => void;
+  removeClient: (id: string) => void;
+
+  updateSettings: (patch: Partial<AppSettings>) => void;
+  setSlackConnected: (connected: boolean) => void;
 
   toggleSelect: (id: string) => void;
   selectMany: (ids: string[]) => void;
@@ -89,6 +107,18 @@ let memberSeq = membersData.length;
 function nextMemberId() {
   memberSeq += 1;
   return `u_local_${memberSeq}`;
+}
+
+let projectSeq = projectsData.length;
+function nextProjectId() {
+  projectSeq += 1;
+  return `p_local_${projectSeq}`;
+}
+
+let clientSeq = clientsData.length;
+function nextClientId() {
+  clientSeq += 1;
+  return `c_local_${clientSeq}`;
 }
 
 // A fixed clock so mock timestamps stay deterministic.
@@ -161,9 +191,11 @@ export const useStore = create<State>((set, get) => ({
   tasks: tasksData as unknown as Task[],
   members: membersData as unknown as TeamMember[],
   projects: projectsData as unknown as Project[],
+  clients: clientsData as unknown as Client[],
   dependencies: depsData as unknown as TaskDependency[],
   updates: updatesData as unknown as Update[],
   activity: activityData as unknown as ActivityEntry[],
+  settings: settingsData as unknown as AppSettings,
 
   currentUserId: "u1",
   activeProject: "all",
@@ -173,6 +205,7 @@ export const useStore = create<State>((set, get) => ({
 
   memberById: (id) => get().members.find((m) => m.id === id),
   projectById: (id) => get().projects.find((p) => p.id === id),
+  clientById: (id) => get().clients.find((c) => c.id === id),
   dependenciesOf: (taskId) =>
     get().dependencies.filter((d) => d.task_id === taskId),
   dependentsOf: (taskId) =>
@@ -278,7 +311,7 @@ export const useStore = create<State>((set, get) => ({
         description: partial.description ?? "",
         assignee_id: partial.assignee_id ?? state.currentUserId,
         due_date: partial.due_date ?? null,
-        eta_hours: partial.eta_hours ?? null,
+        story_points: partial.story_points ?? null,
         status: partial.status ?? "todo",
         urgency: partial.urgency ?? "medium",
         order: 0,
@@ -332,6 +365,79 @@ export const useStore = create<State>((set, get) => ({
       tasks: state.tasks.map((t) =>
         t.assignee_id === id ? { ...t, assignee_id: null } : t
       ),
+    })),
+
+  addProject: (partial) => {
+    const id = nextProjectId();
+    set((state) => {
+      const project: Project = {
+        id,
+        name: partial?.name ?? "New project",
+        owner_id: partial?.owner_id ?? state.currentUserId,
+        client_id: partial?.client_id ?? null,
+        status: partial?.status ?? "active",
+        color: partial?.color ?? "indigo",
+        slack_channel_id: partial?.slack_channel_id ?? null,
+        target_date: partial?.target_date ?? null,
+      };
+      return { projects: [...state.projects, project] };
+    });
+    return id;
+  },
+
+  updateProject: (id, patch) =>
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === id ? { ...p, ...patch } : p
+      ),
+    })),
+
+  removeProject: (id) =>
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== id),
+      // orphaned tasks keep their project_id; guard by leaving them, but a real
+      // system would block deletion of a project with tasks.
+    })),
+
+  addClient: (partial) => {
+    const id = nextClientId();
+    set((state) => {
+      const client: Client = {
+        id,
+        name: partial?.name ?? "New client",
+        contact_name: partial?.contact_name ?? "",
+        contact_email: partial?.contact_email ?? "",
+        status: partial?.status ?? "active",
+        color: partial?.color ?? "sky",
+        created_at: NOW_ISO,
+      };
+      return { clients: [...state.clients, client] };
+    });
+    return id;
+  },
+
+  updateClient: (id, patch) =>
+    set((state) => ({
+      clients: state.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    })),
+
+  removeClient: (id) =>
+    set((state) => ({
+      clients: state.clients.filter((c) => c.id !== id),
+      projects: state.projects.map((p) =>
+        p.client_id === id ? { ...p, client_id: null } : p
+      ),
+    })),
+
+  updateSettings: (patch) =>
+    set((state) => ({ settings: { ...state.settings, ...patch } })),
+
+  setSlackConnected: (connected) =>
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        slack: { ...state.settings.slack, connected },
+      },
     })),
 
   toggleSelect: (id) =>

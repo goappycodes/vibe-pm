@@ -1,0 +1,29 @@
+[
+  {
+    "id": "c1",
+    "name": "Meridian Health",
+    "contact_name": "Dr. Anjali Rao",
+    "contact_email": "anjali@meridianhealth.example",
+    "status": "active",
+    "color": "emerald",
+    "created_at": "2026-06-01T09:00:00Z"
+  },
+  {
+    "id": "c2",
+    "name": "Northwind Retail",
+    "contact_name": "Sam Okafor",
+    "contact_email": "sam@northwind.example",
+    "status": "active",
+    "color": "amber",
+    "created_at": "2026-06-14T09:00:00Z"
+  },
+  {
+    "id": "c3",
+    "name": "Bluewave Fintech",
+    "contact_name": "Lena Torres",
+    "contact_email": "lena@bluewave.example",
+    "status": "active",
+    "color": "sky",
+    "created_at": "2026-07-02T09:00:00Z"
+  }
+]

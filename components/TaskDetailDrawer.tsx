@@ -4,13 +4,7 @@ import { useStore } from "@/lib/store";
 import { STATUS_META, type UpdateSource } from "@/lib/types";
 import { cn, formatDateLong } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import {
-  ArrowRight,
-  Clock,
-  GitCommitVertical,
-  Link2,
-  X,
-} from "lucide-react";
+import { ArrowRight, GitCommitVertical, Link2, X } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "./Avatar";
@@ -20,6 +14,7 @@ import {
   DatePicker,
   ProjectPicker,
   StatusPicker,
+  StoryPointsPicker,
   UrgencyPicker,
 } from "./Pickers";
 
@@ -134,25 +129,11 @@ export function TaskDetailDrawer() {
                 onChange={(id) => updateTask(task.id, { project_id: id })}
               />
             </Field>
-            <Field label="ETA">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-faint" />
-                <input
-                  type="number"
-                  min={0}
-                  value={task.eta_hours ?? ""}
-                  onChange={(e) =>
-                    updateTask(task.id, {
-                      eta_hours: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                  className="w-16 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-sm text-fg outline-none hover:border-border focus:border-accent"
-                  placeholder="—"
-                />
-                <span className="text-xs text-faint">hours</span>
-              </div>
+            <Field label="Story points">
+              <StoryPointsPicker
+                value={task.story_points}
+                onChange={(v) => updateTask(task.id, { story_points: v })}
+              />
             </Field>
           </div>
 

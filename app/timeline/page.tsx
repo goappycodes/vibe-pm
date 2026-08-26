@@ -38,8 +38,9 @@ interface Group {
 }
 
 function durationDays(t: Task): number {
-  if (!t.eta_hours) return 1;
-  return Math.max(1, Math.min(10, Math.ceil(t.eta_hours / 8)));
+  if (!t.story_points) return 1;
+  // Rough calendar span from the estimate (points → working days).
+  return Math.max(1, Math.min(10, Math.ceil(t.story_points / 2)));
 }
 
 export default function TimelinePage() {

@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  PROJECT_COLORS,
   STATUSES,
   STATUS_META,
+  STORY_POINTS,
   URGENCIES,
   URGENCY_META,
   type Status,
@@ -10,7 +12,7 @@ import {
 } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { addDays, cn, TODAY, toISODate } from "@/lib/utils";
-import { Check, X } from "lucide-react";
+import { Check, Hash, X } from "lucide-react";
 import { MenuItem, Popover } from "./Popover";
 import { Avatar } from "./Avatar";
 import { DueBadge, ProjectBadge, StatusBadge, UrgencyBadge } from "./Badges";
@@ -210,6 +212,192 @@ export function ProjectPicker({
                 <ProjectBadge project={p} />
               </span>
               {p.id === value && <Check className="h-3.5 w-3.5 text-accent" />}
+            </MenuItem>
+          ))}
+        </div>
+      )}
+    </Popover>
+  );
+}
+
+export function StoryPointsPicker({
+  value,
+  onChange,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+}) {
+  return (
+    <Popover
+      width={150}
+      trigger={({ toggle }) => (
+        <TriggerButton toggle={toggle}>
+          {value == null ? (
+            <span className="text-sm text-faint">— pts</span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-fg">
+              {value}
+              <span className="text-[9px] font-medium text-faint">SP</span>
+            </span>
+          )}
+        </TriggerButton>
+      )}
+    >
+      {(close) => (
+        <div className="py-1">
+          {STORY_POINTS.map((p) => (
+            <MenuItem
+              key={p}
+              active={p === value}
+              onClick={() => {
+                onChange(p);
+                close();
+              }}
+            >
+              <span className="flex-1 tabular-nums">{p} points</span>
+              {p === value && <Check className="h-3.5 w-3.5 text-accent" />}
+            </MenuItem>
+          ))}
+          <MenuItem
+            active={value == null}
+            onClick={() => {
+              onChange(null);
+              close();
+            }}
+          >
+            <span className="flex-1 text-muted">Unestimated</span>
+          </MenuItem>
+        </div>
+      )}
+    </Popover>
+  );
+}
+
+export function ClientPicker({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  const clients = useStore((s) => s.clients);
+  const client = clients.find((c) => c.id === value);
+  return (
+    <Popover
+      width={230}
+      trigger={({ toggle }) => (
+        <TriggerButton toggle={toggle}>
+          {client ? (
+            <span className="flex items-center gap-1.5 text-sm text-fg">
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  (PROJECT_COLORS[client.color] ?? PROJECT_COLORS.sky).dot
+                )}
+              />
+              {client.name}
+            </span>
+          ) : (
+            <span className="text-sm text-faint">Internal</span>
+          )}
+        </TriggerButton>
+      )}
+    >
+      {(close) => (
+        <div className="max-h-72 overflow-y-auto py-1">
+          <MenuItem
+            active={value === null}
+            onClick={() => {
+              onChange(null);
+              close();
+            }}
+          >
+            <span className="h-2 w-2 rounded-full bg-faint" />
+            <span className="flex-1 text-muted">Internal (no client)</span>
+          </MenuItem>
+          {clients.map((c) => (
+            <MenuItem
+              key={c.id}
+              active={c.id === value}
+              onClick={() => {
+                onChange(c.id);
+                close();
+              }}
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 rounded-full",
+                  (PROJECT_COLORS[c.color] ?? PROJECT_COLORS.sky).dot
+                )}
+              />
+              <span className="flex-1 truncate">{c.name}</span>
+              {c.id === value && <Check className="h-3.5 w-3.5 text-accent" />}
+            </MenuItem>
+          ))}
+        </div>
+      )}
+    </Popover>
+  );
+}
+
+export function SlackChannelPicker({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (name: string | null) => void;
+}) {
+  const channels = useStore((s) => s.settings.slack.channels);
+  const connected = useStore((s) => s.settings.slack.connected);
+  return (
+    <Popover
+      width={240}
+      trigger={({ toggle }) => (
+        <TriggerButton toggle={toggle}>
+          {value ? (
+            <span className="flex items-center gap-1 text-sm text-fg">
+              <Hash className="h-3.5 w-3.5 text-faint" />
+              {value}
+            </span>
+          ) : (
+            <span className="text-sm text-faint">Link channel…</span>
+          )}
+        </TriggerButton>
+      )}
+    >
+      {(close) => (
+        <div className="max-h-72 overflow-y-auto py-1">
+          {!connected && (
+            <div className="px-2.5 py-2 text-xs text-amber-600">
+              Slack isn&apos;t connected. Connect it in Settings.
+            </div>
+          )}
+          <MenuItem
+            active={!value}
+            onClick={() => {
+              onChange(null);
+              close();
+            }}
+          >
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-faint">
+              <X className="h-3 w-3" />
+            </span>
+            <span className="flex-1 text-muted">No channel</span>
+          </MenuItem>
+          {channels.map((ch) => (
+            <MenuItem
+              key={ch.id}
+              active={ch.name === value}
+              onClick={() => {
+                onChange(ch.name);
+                close();
+              }}
+            >
+              <Hash className="h-3.5 w-3.5 text-faint" />
+              <span className="flex-1 truncate">{ch.name}</span>
+              {ch.name === value && (
+                <Check className="h-3.5 w-3.5 text-accent" />
+              )}
             </MenuItem>
           ))}
         </div>

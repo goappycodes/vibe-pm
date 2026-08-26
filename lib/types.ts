@@ -23,13 +23,24 @@ export interface TeamMember {
   timezone: string;
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  contact_name: string;
+  contact_email: string;
+  status: "active" | "archived";
+  color: string; // token key
+  created_at: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   owner_id: string;
+  client_id: string | null;
   status: "active" | "paused" | "done";
   color: string; // token key, e.g. "indigo"
-  slack_channel_id: string; // human-readable channel name for mock
+  slack_channel_id: string | null; // channel name (from the connected workspace)
   target_date: string | null;
 }
 
@@ -40,7 +51,7 @@ export interface Task {
   description: string;
   assignee_id: string | null;
   due_date: string | null; // ISO date
-  eta_hours: number | null;
+  story_points: number | null; // agile estimate (Fibonacci)
   status: Status;
   urgency: Urgency;
   order: number;
@@ -48,6 +59,28 @@ export interface Task {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export const STORY_POINTS = [1, 2, 3, 5, 8, 13] as const;
+
+export interface SlackChannel {
+  id: string;
+  name: string;
+}
+
+export interface AppSettings {
+  slack: {
+    connected: boolean;
+    workspace: string; // e.g. appycodes.slack.com
+    team_name: string;
+    channels: SlackChannel[];
+  };
+  general: {
+    org_name: string;
+    default_view: string; // route, e.g. /my-day
+    week_start: "sunday" | "monday";
+    timezone: string;
+  };
 }
 
 export interface TaskDependency {

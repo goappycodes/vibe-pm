@@ -11,6 +11,7 @@ import {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Check, Lock, Plus, ShieldCheck, Trash2, UserCog, Users2, X } from "lucide-react";
+import Link from "next/link";
 import { useMemo } from "react";
 
 const COLS =
@@ -156,7 +157,13 @@ function MemberRow({
     >
       {/* name */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <Avatar member={member} size="md" />
+        <Link
+          href={`/member/${member.id}`}
+          title="View workload"
+          className="shrink-0 rounded-full ring-2 ring-transparent transition-all hover:ring-accent/40"
+        >
+          <Avatar member={member} size="md" />
+        </Link>
         <div className="min-w-0 flex-1">
           {editable ? (
             <input
@@ -167,9 +174,12 @@ function MemberRow({
               className="w-full truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-sm font-medium text-fg outline-none hover:border-border focus:border-accent focus:bg-surface-2"
             />
           ) : (
-            <div className="truncate px-1.5 text-sm font-medium text-fg">
+            <Link
+              href={`/member/${member.id}`}
+              className="block truncate px-1.5 text-sm font-medium text-fg hover:text-accent"
+            >
               {member.name}
-            </div>
+            </Link>
           )}
           <div className="px-1.5 text-[11px] text-faint">
             {openTasks} open {openTasks === 1 ? "task" : "tasks"}

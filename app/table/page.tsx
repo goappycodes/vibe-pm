@@ -7,6 +7,7 @@ import {
   DatePicker,
   ProjectPicker,
   StatusPicker,
+  StoryPointsPicker,
   UrgencyPicker,
 } from "@/components/Pickers";
 import { useStore } from "@/lib/store";
@@ -28,10 +29,11 @@ import {
   Signal,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type SortKey = "due" | "urgency" | "status" | "title";
-const COLS = "grid grid-cols-[32px_minmax(0,1fr)_150px_140px_140px_110px_96px_36px] items-center gap-2";
+const COLS =
+  "grid grid-cols-[32px_minmax(0,1fr)_150px_140px_140px_110px_74px_96px_36px] items-center gap-2";
 
 export default function TablePage() {
   const tasks = useStore((s) => s.tasks);
@@ -114,6 +116,7 @@ export default function TablePage() {
             <span>Assignee</span>
             <HeaderCell label="Status" active={sort.key === "status"} dir={sort.dir} onClick={() => setSortKey("status")} />
             <HeaderCell label="Urgency" active={sort.key === "urgency"} dir={sort.dir} onClick={() => setSortKey("urgency")} />
+            <span>Points</span>
             <HeaderCell label="Due" active={sort.key === "due"} dir={sort.dir} onClick={() => setSortKey("due")} />
             <span />
           </div>
@@ -172,6 +175,84 @@ function HeaderCell({
   );
 }
 
+function EditableTitle({
+  value,
+  done,
+  onOpen,
+  onRename,
+}: {
+  value: string;
+  done: boolean;
+  onOpen: () => void;
+  onRename: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  useEffect(
+    () => () => {
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+    },
+    []
+  );
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        defaultValue={value}
+        onBlur={(e) => {
+          onRename(e.target.value.trim() || value);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            onRename(e.currentTarget.value.trim() || value);
+            setEditing(false);
+          }
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="w-full min-w-0 truncate rounded-md border border-accent bg-surface-2 px-1.5 py-1 text-sm text-fg outline-none"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        // Defer the open so a double-click (rename) can cancel it.
+        if (clickTimer.current) return;
+        clickTimer.current = setTimeout(() => {
+          clickTimer.current = null;
+          onOpen();
+        }, 200);
+      }}
+      onDoubleClick={() => {
+        if (clickTimer.current) {
+          clearTimeout(clickTimer.current);
+          clickTimer.current = null;
+        }
+        setEditing(true);
+      }}
+      title="Click to open · double-click to rename"
+      className={cn(
+        "min-w-0 truncate rounded-md px-1.5 py-1 text-left text-sm text-fg transition-colors hover:bg-surface-2",
+        done && "text-faint line-through"
+      )}
+    >
+      {value}
+    </button>
+  );
+}
+
 function TableRow({
   task,
   selected,
@@ -199,13 +280,11 @@ function TableRow({
         onChange={onToggle}
         className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-accent"
       />
-      <input
+      <EditableTitle
         value={task.title}
-        onChange={(e) => onUpdate({ title: e.target.value })}
-        className={cn(
-          "min-w-0 truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-fg outline-none hover:border-border focus:border-accent focus:bg-surface-2",
-          task.status === "done" && "text-faint line-through"
-        )}
+        done={task.status === "done"}
+        onOpen={onOpen}
+        onRename={(v) => onUpdate({ title: v })}
       />
       <ProjectPicker
         value={task.project_id}
@@ -222,6 +301,10 @@ function TableRow({
       <UrgencyPicker
         value={task.urgency}
         onChange={(u) => onUpdate({ urgency: u })}
+      />
+      <StoryPointsPicker
+        value={task.story_points}
+        onChange={(v) => onUpdate({ story_points: v })}
       />
       <DatePicker
         value={task.due_date}
