@@ -14,9 +14,14 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  closestCorners,
+  closestCenter,
+  getFirstCollision,
+  pointerWithin,
+  rectIntersection,
+  useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -28,14 +33,19 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDroppable } from "@dnd-kit/core";
 import { Link2, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type Columns = Record<Status, string[]>;
 
-function buildColumns(tasks: Task[]): Columns {
-  const map: Columns = {
+function emptyColumns(): Columns {
+  return {
     backlog: [],
     todo: [],
     in_progress: [],
@@ -43,11 +53,23 @@ function buildColumns(tasks: Task[]): Columns {
     in_review: [],
     done: [],
   };
+}
+
+function buildColumns(tasks: Task[]): Columns {
+  const map = emptyColumns();
   const sorted = [...tasks].sort(
     (a, b) => a.order - b.order || a.title.localeCompare(b.title)
   );
   for (const t of sorted) map[t.status].push(t.id);
   return map;
+}
+
+const isStatus = (id: string): id is Status =>
+  (STATUSES as string[]).includes(id);
+
+function findContainer(items: Columns, id: string): Status | undefined {
+  if (isStatus(id)) return id;
+  return STATUSES.find((s) => items[s].includes(id));
 }
 
 export default function BoardPage() {
@@ -69,41 +91,89 @@ export default function BoardPage() {
     return m;
   }, [tasks]);
 
-  const [items, setItems] = useState<Columns>(() => buildColumns(visible));
-  const [activeId, setActiveId] = useState<string | null>(null);
+  // Columns derived straight from the store — the source of truth when idle.
+  const derived = useMemo(() => buildColumns(visible), [visible]);
 
-  // Keep local column state in sync with the store while not dragging.
+  // During a drag we operate on a clone; null means "use derived".
+  const [dragItems, setDragItems] = useState<Columns | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const items = dragItems ?? derived;
+
+  const lastOverId = useRef<string | null>(null);
+  const recentlyMoved = useRef(false);
+
   useEffect(() => {
-    if (!activeId) setItems(buildColumns(visible));
-  }, [visible, activeId]);
+    requestAnimationFrame(() => {
+      recentlyMoved.current = false;
+    });
+  }, [dragItems]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  const findContainer = (id: string): Status | undefined => {
-    if (id in items) return id as Status;
-    return STATUSES.find((s) => items[s].includes(id));
+  // Collision strategy that avoids the cross-container oscillation loop.
+  const collisionDetection: CollisionDetection = useCallback(
+    (args) => {
+      const pointer = pointerWithin(args);
+      const intersections = pointer.length ? pointer : rectIntersection(args);
+      let overId = getFirstCollision(intersections, "id");
+
+      if (overId != null) {
+        const overStr = String(overId);
+        if (isStatus(overStr)) {
+          const containerItems = items[overStr];
+          if (containerItems.length > 0) {
+            const closest = closestCenter({
+              ...args,
+              droppableContainers: args.droppableContainers.filter(
+                (c) =>
+                  String(c.id) !== overStr &&
+                  containerItems.includes(String(c.id))
+              ),
+            });
+            if (closest.length) overId = closest[0].id;
+          }
+        }
+        lastOverId.current = String(overId);
+        return [{ id: overId }];
+      }
+
+      if (recentlyMoved.current) lastOverId.current = activeId;
+      return lastOverId.current ? [{ id: lastOverId.current }] : [];
+    },
+    [activeId, items]
+  );
+
+  const reset = () => {
+    setDragItems(null);
+    setActiveId(null);
   };
 
-  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
+  const onDragStart = (e: DragStartEvent) => {
+    setActiveId(String(e.active.id));
+    setDragItems(derived);
+  };
 
   const onDragOver = (e: DragOverEvent) => {
-    const activeId = String(e.active.id);
     const overId = e.over ? String(e.over.id) : null;
     if (!overId) return;
-    const activeC = findContainer(activeId);
-    const overC = findContainer(overId);
+    const activeId = String(e.active.id);
+    const activeC = findContainer(items, activeId);
+    const overC = findContainer(items, overId);
     if (!activeC || !overC || activeC === overC) return;
 
-    setItems((prev) => {
-      const activeItems = prev[activeC];
-      const overItems = prev[overC];
-      const overIndex =
-        overId in prev ? overItems.length : overItems.indexOf(overId);
+    setDragItems((prev) => {
+      const base = prev ?? derived;
+      const activeItems = base[activeC];
+      const overItems = base[overC];
+      const overIndex = isStatus(overId)
+        ? overItems.length
+        : overItems.indexOf(overId);
       const insertAt = overIndex >= 0 ? overIndex : overItems.length;
+      recentlyMoved.current = true;
       return {
-        ...prev,
+        ...base,
         [activeC]: activeItems.filter((id) => id !== activeId),
         [overC]: [
           ...overItems.slice(0, insertAt),
@@ -117,30 +187,32 @@ export default function BoardPage() {
   const onDragEnd = (e: DragEndEvent) => {
     const id = String(e.active.id);
     const overId = e.over ? String(e.over.id) : null;
-    const container = findContainer(id);
-    setActiveId(null);
-    if (!container || !overId) return;
+    const current = dragItems ?? derived;
+    const container = findContainer(current, id);
+    if (!container || !overId) {
+      reset();
+      return;
+    }
 
-    let next = items;
-    const overC = findContainer(overId);
+    let cols = current;
+    const overC = findContainer(current, overId);
     if (overC === container && overId !== id) {
-      const oldIndex = items[container].indexOf(id);
-      const newIndex =
-        overId in items
-          ? items[container].length - 1
-          : items[container].indexOf(overId);
+      const oldIndex = current[container].indexOf(id);
+      const newIndex = isStatus(overId)
+        ? current[container].length - 1
+        : current[container].indexOf(overId);
       if (oldIndex !== newIndex && newIndex >= 0) {
-        next = {
-          ...items,
-          [container]: arrayMove(items[container], oldIndex, newIndex),
+        cols = {
+          ...current,
+          [container]: arrayMove(current[container], oldIndex, newIndex),
         };
-        setItems(next);
       }
     }
 
     const task = tasksById.get(id);
     if (task && task.status !== container) moveTaskStatus(id, container);
-    reorderColumn(container, next[container]);
+    reorderColumn(container, cols[container]);
+    reset();
   };
 
   const activeTask = activeId ? tasksById.get(activeId) : null;
@@ -148,11 +220,11 @@ export default function BoardPage() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={collisionDetection}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onDragCancel={() => setActiveId(null)}
+      onDragCancel={reset}
     >
       <div className="h-full overflow-x-auto overflow-y-hidden">
         <div className="flex h-full gap-3 px-4 py-4">
@@ -167,7 +239,9 @@ export default function BoardPage() {
           ))}
         </div>
       </div>
-      <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0,0,1)" }}>
+      <DragOverlay
+        dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2,0,0,1)" }}
+      >
         {activeTask ? <Card task={activeTask} overlay /> : null}
       </DragOverlay>
     </DndContext>
@@ -204,8 +278,7 @@ function Column({
     addTask({
       title,
       status,
-      project_id:
-        activeProject !== "all" ? activeProject : projects[0]?.id,
+      project_id: activeProject !== "all" ? activeProject : projects[0]?.id,
     });
     setDraft("");
     inputRef.current?.focus();
@@ -230,11 +303,7 @@ function Column({
             const task = tasksById.get(id);
             if (!task) return null;
             return (
-              <SortableCard
-                key={id}
-                task={task}
-                dragging={activeId === id}
-              />
+              <SortableCard key={id} task={task} dragging={activeId === id} />
             );
           })}
           {ids.length === 0 && !adding && (
@@ -245,7 +314,6 @@ function Column({
         </div>
       </SortableContext>
 
-      {/* quick-add composer */}
       <div className="mt-1 p-1">
         {adding ? (
           <div className="rounded-xl border border-border bg-surface p-2 shadow-soft">
@@ -302,28 +370,17 @@ function Column({
 
 function SortableCard({ task, dragging }: { task: Task; dragging: boolean }) {
   const openDetail = useStore((s) => s.openDetail);
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id });
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-  };
+  const style = { transform: CSS.Translate.toString(transform), transition };
 
-  // The slot left behind by the lifted card becomes a dashed placeholder —
-  // the "space" the card will drop into (Trello-style).
   if (isDragging || dragging) {
     return (
       <div
         ref={setNodeRef}
         style={style}
-        className="h-[74px] rounded-xl border-2 border-dashed border-accent/40 bg-accent-soft/30"
+        className="h-[92px] rounded-xl border-2 border-dashed border-accent/40 bg-accent-soft/30"
       />
     );
   }
