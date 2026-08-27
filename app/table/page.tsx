@@ -27,6 +27,7 @@ import {
   CircleUser,
   Maximize2,
   Signal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -324,6 +325,7 @@ function TableRow({
 function BulkBar() {
   const selected = useStore((s) => s.selectedTaskIds);
   const bulkUpdate = useStore((s) => s.bulkUpdate);
+  const bulkDelete = useStore((s) => s.bulkDelete);
   const clearSelection = useStore((s) => s.clearSelection);
   const members = useStore((s) => s.members);
 
@@ -434,6 +436,22 @@ function BulkBar() {
         </BulkMenu>
 
         <span className="mx-1 h-5 w-px bg-border" />
+        <button
+          onClick={() => {
+            if (
+              confirm(
+                `Delete ${selected.length} task${selected.length === 1 ? "" : "s"}? This cannot be undone.`
+              )
+            ) {
+              bulkDelete(selected);
+            }
+          }}
+          className="btn-ghost gap-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+          title="Delete selected"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </button>
         <button
           onClick={clearSelection}
           className="btn-ghost h-8 w-8 p-0"

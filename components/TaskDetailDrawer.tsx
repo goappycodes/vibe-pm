@@ -4,7 +4,15 @@ import { useStore } from "@/lib/store";
 import { STATUS_META, type UpdateSource } from "@/lib/types";
 import { cn, formatDateLong } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { ArrowRight, GitCommitVertical, Link2, X } from "lucide-react";
+import {
+  ArrowRight,
+  GitCommitVertical,
+  Link2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { MenuItem, Popover } from "./Popover";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "./Avatar";
@@ -41,6 +49,9 @@ export function TaskDetailDrawer() {
   );
   const updateTask = useStore((s) => s.updateTask);
   const openDetail = useStore((s) => s.openDetail);
+  const deleteTask = useStore((s) => s.deleteTask);
+  const addDependency = useStore((s) => s.addDependency);
+  const removeDependency = useStore((s) => s.removeDependency);
   const dependencies = useStore((s) => s.dependencies);
   const tasks = useStore((s) => s.tasks);
   const members = useStore((s) => s.members);
@@ -78,13 +89,27 @@ export function TaskDetailDrawer() {
         {/* header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <ProjectBadge project={project} />
-          <button
-            onClick={closeDetail}
-            className="btn-ghost h-8 w-8 p-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                if (confirm("Delete this task? This cannot be undone.")) {
+                  deleteTask(task.id);
+                }
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+              title="Delete task"
+              aria-label="Delete task"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={closeDetail}
+              className="btn-ghost h-8 w-8 p-0"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -154,43 +179,104 @@ export function TaskDetailDrawer() {
           </div>
 
           {/* dependencies */}
-          {(dependsOn.length > 0 || blocks.length > 0) && (
-            <div className="border-b border-border px-4 py-3">
-              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-faint">
+          <div className="border-b border-border px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-faint">
                 <Link2 className="h-3.5 w-3.5" /> Dependencies
               </div>
-              {dependsOn.length > 0 && (
-                <div className="mb-2">
-                  <div className="mb-1 text-[11px] text-faint">Depends on</div>
-                  <div className="space-y-1">
-                    {dependsOn.map((d) => (
-                      <DepRow
-                        key={d!.id}
-                        title={d!.title}
-                        status={d!.status}
-                        onClick={() => openDetail(d!.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {blocks.length > 0 && (
-                <div>
-                  <div className="mb-1 text-[11px] text-faint">Blocks</div>
-                  <div className="space-y-1">
-                    {blocks.map((d) => (
-                      <DepRow
-                        key={d!.id}
-                        title={d!.title}
-                        status={d!.status}
-                        onClick={() => openDetail(d!.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              <Popover
+                width={280}
+                align="end"
+                trigger={({ toggle }) => (
+                  <button
+                    onClick={toggle}
+                    className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-accent hover:bg-accent-soft"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add
+                  </button>
+                )}
+              >
+                {(close) => {
+                  const candidates = tasks.filter(
+                    (t) =>
+                      t.id !== task.id &&
+                      !dependsOn.some((d) => d!.id === t.id) &&
+                      !dependencies.some(
+                        (d) =>
+                          d.task_id === t.id && d.depends_on_task_id === task.id
+                      )
+                  );
+                  return (
+                    <div className="max-h-72 overflow-y-auto py-1">
+                      <div className="px-2.5 pb-1 pt-0.5 text-[11px] text-faint">
+                        This task depends on…
+                      </div>
+                      {candidates.length === 0 && (
+                        <div className="px-2.5 py-2 text-xs text-faint">
+                          No other tasks available.
+                        </div>
+                      )}
+                      {candidates.slice(0, 40).map((c) => (
+                        <MenuItem
+                          key={c.id}
+                          onClick={() => {
+                            addDependency(task.id, c.id);
+                            close();
+                          }}
+                        >
+                          <span
+                            className={cn(
+                              "h-2 w-2 shrink-0 rounded-full",
+                              STATUS_META[c.status].dot
+                            )}
+                          />
+                          <span className="flex-1 truncate">{c.title}</span>
+                        </MenuItem>
+                      ))}
+                    </div>
+                  );
+                }}
+              </Popover>
             </div>
-          )}
+
+            {dependsOn.length === 0 && blocks.length === 0 && (
+              <div className="text-xs text-faint">
+                No dependencies yet.
+              </div>
+            )}
+            {dependsOn.length > 0 && (
+              <div className="mb-2">
+                <div className="mb-1 text-[11px] text-faint">Depends on</div>
+                <div className="space-y-1">
+                  {dependsOn.map((d) => (
+                    <DepRow
+                      key={d!.id}
+                      title={d!.title}
+                      status={d!.status}
+                      onClick={() => openDetail(d!.id)}
+                      onRemove={() => removeDependency(task.id, d!.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {blocks.length > 0 && (
+              <div>
+                <div className="mb-1 text-[11px] text-faint">Blocks</div>
+                <div className="space-y-1">
+                  {blocks.map((d) => (
+                    <DepRow
+                      key={d!.id}
+                      title={d!.title}
+                      status={d!.status}
+                      onClick={() => openDetail(d!.id)}
+                      onRemove={() => removeDependency(d!.id, task.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* activity */}
           <div className="px-4 py-3">
@@ -253,19 +339,32 @@ function DepRow({
   title,
   status,
   onClick,
+  onRemove,
 }: {
   title: string;
   status: keyof typeof STATUS_META;
   onClick: () => void;
+  onRemove?: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-left text-sm transition-colors hover:border-border-strong"
-    >
+    <div className="group flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-sm transition-colors hover:border-border-strong">
       <span className={cn("h-2 w-2 rounded-full", STATUS_META[status].dot)} />
-      <span className="flex-1 truncate text-fg">{title}</span>
-      <ArrowRight className="h-3.5 w-3.5 text-faint" />
-    </button>
+      <button
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+      >
+        <span className="flex-1 truncate text-fg">{title}</span>
+        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-faint" />
+      </button>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="flex h-5 w-5 items-center justify-center rounded text-faint opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100 dark:hover:bg-rose-500/10"
+          title="Remove dependency"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }

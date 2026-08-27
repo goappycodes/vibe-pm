@@ -70,6 +70,10 @@ interface State {
   bulkUpdate: (ids: string[], patch: TaskPatch) => void;
   moveTaskStatus: (id: string, status: Status, order?: number) => void;
   addTask: (partial: Partial<Task> & { title: string }) => string;
+  deleteTask: (id: string) => void;
+  bulkDelete: (ids: string[]) => void;
+  addDependency: (taskId: string, dependsOnId: string) => void;
+  removeDependency: (taskId: string, dependsOnId: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -393,6 +397,68 @@ export const useStore = create<State>((set, get) => ({
     set({ tasks: [task, ...state.tasks] });
     upsertRows("tasks", [task]);
     return id;
+  },
+
+  deleteTask: (id) => {
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+      dependencies: state.dependencies.filter(
+        (d) => d.task_id !== id && d.depends_on_task_id !== id
+      ),
+      activity: state.activity.filter((a) => a.task_id !== id),
+      selectedTaskIds: state.selectedTaskIds.filter((x) => x !== id),
+      detailTaskId: state.detailTaskId === id ? null : state.detailTaskId,
+    }));
+    deleteRow("tasks", { id }); // DB cascades deps + activity
+  },
+
+  bulkDelete: (ids) => {
+    const idSet = new Set(ids);
+    set((state) => ({
+      tasks: state.tasks.filter((t) => !idSet.has(t.id)),
+      dependencies: state.dependencies.filter(
+        (d) => !idSet.has(d.task_id) && !idSet.has(d.depends_on_task_id)
+      ),
+      activity: state.activity.filter((a) => !idSet.has(a.task_id)),
+      selectedTaskIds: [],
+      detailTaskId:
+        state.detailTaskId && idSet.has(state.detailTaskId)
+          ? null
+          : state.detailTaskId,
+    }));
+    ids.forEach((id) => deleteRow("tasks", { id }));
+  },
+
+  addDependency: (taskId, dependsOnId) => {
+    if (taskId === dependsOnId) return;
+    const state = get();
+    const exists = state.dependencies.some(
+      (d) => d.task_id === taskId && d.depends_on_task_id === dependsOnId
+    );
+    // Avoid the trivial 2-cycle (A↔B).
+    const reverse = state.dependencies.some(
+      (d) => d.task_id === dependsOnId && d.depends_on_task_id === taskId
+    );
+    if (exists || reverse) return;
+    const dep: TaskDependency = {
+      task_id: taskId,
+      depends_on_task_id: dependsOnId,
+      type: "finish_start",
+    };
+    set({ dependencies: [...state.dependencies, dep] });
+    upsertRows("task_dependencies", [dep]);
+  },
+
+  removeDependency: (taskId, dependsOnId) => {
+    set((state) => ({
+      dependencies: state.dependencies.filter(
+        (d) => !(d.task_id === taskId && d.depends_on_task_id === dependsOnId)
+      ),
+    }));
+    deleteRow("task_dependencies", {
+      task_id: taskId,
+      depends_on_task_id: dependsOnId,
+    });
   },
 
   addMember: (partial) => {
