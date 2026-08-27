@@ -91,5 +91,39 @@ That's it — edit a task and the project channel gets a note.
   route passes those through as-is. Make sure the bot is a member of the channel.
 - Slack's default sender obeys workspace rate limits; heavy edit bursts may be
   throttled. Batch/debounce later if needed.
-- A future step (inbound) parses Slack daily updates back into task changes —
-  not built yet.
+## Inbound — create tasks from Slack
+
+Two ways to turn Slack into a task, both landing in the project mapped to the
+channel (these projects were seeded from Slack, so `project.id` == channel id).
+The invoking Slack user is matched to a member by `slack_user_id` and set as the
+assignee; the reply is ephemeral, and the DB trigger posts the shared `:new:`
+note to the channel.
+
+- **Slash command** `/vibe <title>` — add `!high` / `!urgent` to flag priority.
+  Route: `POST /api/slack/command` ([app/api/slack/command/route.ts](app/api/slack/command/route.ts)).
+- **Message shortcut** "Add to Vibe PM" — turns any message into a task (title =
+  first line, description = the full message + who posted it).
+  Route: `POST /api/slack/interactivity` ([app/api/slack/interactivity/route.ts](app/api/slack/interactivity/route.ts)).
+
+Both verify Slack's request signature (`SLACK_SIGNING_SECRET`) and reject anything
+that doesn't match (bad signature → 401; requests older than 5 min are dropped).
+Verified locally end to end (task created with the right project/assignee/urgency;
+bad signature rejected).
+
+### Setup (one-time)
+
+**1. Vercel env vars** (Project → Settings → Environment Variables, then redeploy):
+- `SLACK_SIGNING_SECRET` — Slack app → **Basic Information → Signing Secret**
+- `SUPABASE_SERVICE_ROLE_KEY` and `NEXT_PUBLIC_SUPABASE_URL` — from `.env.local`
+- `SLACK_BOT_TOKEN` — the `xoxb-…` token
+- `NEXT_PUBLIC_APP_URL` — optional; defaults to `https://vibe-pm-six.vercel.app`
+
+**2. Slack app** (https://api.slack.com/apps → your app):
+- **Slash Commands → Create New Command**: Command `/vibe`, Request URL
+  `https://vibe-pm-six.vercel.app/api/slack/command`, usage hint `<task title>`.
+- **Interactivity & Shortcuts → turn On**, Request URL
+  `https://vibe-pm-six.vercel.app/api/slack/interactivity`. Then **Create New
+  Shortcut → On messages**, name "Add to Vibe PM", callback id `vibe_add_task`.
+- **OAuth & Permissions → Bot Token Scopes**: add `commands`. **Reinstall** the app.
+
+The command/shortcut only works in a channel that maps to a project.
