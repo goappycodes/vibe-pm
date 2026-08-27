@@ -13,6 +13,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/table": { title: "Table", subtitle: "Dense grid — inline & bulk edit" },
   "/board": { title: "Board", subtitle: "Kanban by status" },
   "/timeline": { title: "Timeline", subtitle: "Due dates & dependencies" },
+  "/updates": { title: "Updates", subtitle: "Daily standups — post & catch up" },
   "/team": { title: "Team", subtitle: "Members, roles & reporting" },
   "/projects": { title: "Projects", subtitle: "Manage projects, clients & channels" },
   "/clients": { title: "Clients", subtitle: "Client master" },

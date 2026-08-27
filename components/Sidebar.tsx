@@ -11,6 +11,7 @@ import {
   Gauge,
   KanbanSquare,
   LogOut,
+  MessageSquare,
   Moon,
   Settings,
   Sparkles,
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/table", label: "Table", icon: Table2 },
   { href: "/board", label: "Board", icon: KanbanSquare },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+  { href: "/updates", label: "Updates", icon: MessageSquare },
 ];
 
 const MANAGE = [

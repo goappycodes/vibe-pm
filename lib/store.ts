@@ -87,6 +87,8 @@ interface State {
   attachmentsForTask: (taskId: string) => Attachment[];
   addAttachment: (taskId: string, file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
+  addUpdate: (rawText: string) => void;
+  removeUpdate: (id: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -569,6 +571,27 @@ export const useStore = create<State>((set, get) => ({
     if (att && supabase) {
       void supabase.storage.from("attachments").remove([att.file_path]);
     }
+  },
+
+  addUpdate: (rawText) => {
+    const text = rawText.trim();
+    if (!text) return;
+    const update: Update = {
+      id: genId("up"),
+      author_id: get().currentUserId,
+      source: "ui",
+      raw_text: text,
+      parsed: "",
+      task_id: null,
+      created_at: nowISO(),
+    };
+    set((state) => ({ updates: [update, ...state.updates] }));
+    upsertRows("updates", [update]);
+  },
+
+  removeUpdate: (id) => {
+    set((state) => ({ updates: state.updates.filter((u) => u.id !== id) }));
+    deleteRow("updates", { id });
   },
 
   addMember: (partial) => {
