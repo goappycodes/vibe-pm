@@ -10,7 +10,8 @@ import {
 } from "@/lib/types";
 import { addDays, cn, parseDate, TODAY } from "@/lib/utils";
 import { differenceInCalendarDays, format } from "date-fns";
-import { Info, Minus, Plus } from "lucide-react";
+import { ChevronDown, Info, Minus, Plus } from "lucide-react";
+import { MenuItem, Popover } from "@/components/Popover";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 const BASE_DAY_W = 30;
@@ -58,14 +59,26 @@ export default function TimelinePage() {
   );
   const initedRef = useRef(false);
   const [dayW, setDayW] = useState(BASE_DAY_W);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [hideDone, setHideDone] = useState(false);
 
-  const visible = useMemo(
-    () =>
+  const visible = useMemo(() => {
+    return (
       activeProject === "all"
         ? tasks
-        : tasks.filter((t) => t.project_id === activeProject),
-    [tasks, activeProject]
-  );
+        : tasks.filter((t) => t.project_id === activeProject)
+    ).filter((t) => {
+      if (hideDone && t.status === "done") return false;
+      if (assigneeFilter === "unassigned" && t.assignee_id) return false;
+      if (
+        assigneeFilter !== "all" &&
+        assigneeFilter !== "unassigned" &&
+        t.assignee_id !== assigneeFilter
+      )
+        return false;
+      return true;
+    });
+  }, [tasks, activeProject, assigneeFilter, hideDone]);
   const dated = useMemo(() => visible.filter((t) => t.due_date), [visible]);
   const undatedCount = visible.length - dated.length;
 
@@ -203,7 +216,75 @@ export default function TimelinePage() {
           <span className="inline-block h-0 w-4 border-t-2 border-dashed border-rose-400" />
           At-risk dependency
         </span>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
+          <Popover
+            width={220}
+            align="end"
+            trigger={({ toggle }) => (
+              <button
+                onClick={toggle}
+                className="flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg hover:bg-surface-2"
+              >
+                {assigneeFilter === "all"
+                  ? "Everyone"
+                  : assigneeFilter === "unassigned"
+                    ? "Unassigned"
+                    : (members
+                        .find((m) => m.id === assigneeFilter)
+                        ?.name.split(" ")[0] ?? "Assignee")}
+                <ChevronDown className="h-3 w-3 text-faint" />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="max-h-72 overflow-y-auto py-1">
+                <MenuItem
+                  active={assigneeFilter === "all"}
+                  onClick={() => {
+                    setAssigneeFilter("all");
+                    close();
+                  }}
+                >
+                  <span className="flex-1">Everyone</span>
+                </MenuItem>
+                <MenuItem
+                  active={assigneeFilter === "unassigned"}
+                  onClick={() => {
+                    setAssigneeFilter("unassigned");
+                    close();
+                  }}
+                >
+                  <span className="flex-1 text-muted">Unassigned</span>
+                </MenuItem>
+                {members
+                  .filter((m) => tasks.some((t) => t.assignee_id === m.id))
+                  .map((m) => (
+                    <MenuItem
+                      key={m.id}
+                      active={assigneeFilter === m.id}
+                      onClick={() => {
+                        setAssigneeFilter(m.id);
+                        close();
+                      }}
+                    >
+                      <Avatar member={m} size="sm" />
+                      <span className="flex-1 truncate">{m.name}</span>
+                    </MenuItem>
+                  ))}
+              </div>
+            )}
+          </Popover>
+          <button
+            onClick={() => setHideDone((v) => !v)}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs transition-colors",
+              hideDone
+                ? "border-accent text-accent"
+                : "border-border text-muted hover:text-fg"
+            )}
+          >
+            Hide done
+          </button>
           {undatedCount > 0 && (
             <span className="hidden items-center gap-1 md:flex">
               <Info className="h-3.5 w-3.5" />
