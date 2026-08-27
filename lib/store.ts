@@ -213,8 +213,15 @@ export const useStore = create<State>((set, get) => ({
       const firstErr =
         m.error || c.error || p.error || t.error || d.error || u.error || a.error;
       if (firstErr) throw firstErr;
+      const members = (m.data as TeamMember[]) ?? get().members;
+      // Point "current user" at the real admin (bundled u1 may not exist in DB).
+      const current = members.find((x) => x.id === get().currentUserId)
+        ? get().currentUserId
+        : members.find((x) => x.role === "admin")?.id ??
+          members[0]?.id ??
+          get().currentUserId;
       set({
-        members: (m.data as TeamMember[]) ?? get().members,
+        members,
         clients: (c.data as Client[]) ?? get().clients,
         projects: (p.data as Project[]) ?? get().projects,
         tasks: (t.data as Task[]) ?? get().tasks,
@@ -227,6 +234,7 @@ export const useStore = create<State>((set, get) => ({
               general: (s.data as { general: AppSettings["general"] }).general,
             }
           : get().settings,
+        currentUserId: current,
         loaded: true,
       });
     } catch (e) {
