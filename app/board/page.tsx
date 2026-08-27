@@ -2,6 +2,7 @@
 
 import { Avatar } from "@/components/Avatar";
 import {
+  CycleBadge,
   DueBadge,
   PointsBadge,
   ProjectBadge,
@@ -554,7 +555,14 @@ function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
       </p>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5 text-xs text-faint">
-          <DueBadge date={task.due_date} />
+          {task.status === "done" ? (
+            <CycleBadge
+              createdAt={task.created_at}
+              completedAt={task.completed_at}
+            />
+          ) : (
+            <DueBadge date={task.due_date} />
+          )}
           <PointsBadge points={task.story_points} />
           {depCount > 0 && (
             <span className="flex items-center gap-1" title="Has dependencies">

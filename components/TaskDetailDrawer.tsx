@@ -2,10 +2,11 @@
 
 import { useStore } from "@/lib/store";
 import { STATUS_META, type UpdateSource } from "@/lib/types";
-import { cn, formatDateLong } from "@/lib/utils";
+import { cn, cycleTime, formatDateLong } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   ArrowRight,
+  Check,
   FileText,
   GitCommitVertical,
   Link2,
@@ -198,6 +199,14 @@ export function TaskDetailDrawer() {
                 onChange={(v) => updateTask(task.id, { story_points: v })}
               />
             </Field>
+            {task.status === "done" && task.completed_at && (
+              <Field label="Time to complete">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-3.5 w-3.5" />
+                  {cycleTime(task.created_at, task.completed_at)?.long ?? "—"}
+                </span>
+              </Field>
+            )}
           </div>
 
           {/* description */}

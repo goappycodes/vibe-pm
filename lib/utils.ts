@@ -56,6 +56,30 @@ export function relativeDue(dateStr: string | null): RelativeDue {
   return { label: format(d, "MMM d"), tone: "future" };
 }
 
+/** How long a task took: created → completed. Null if not completed. */
+export function cycleTime(
+  createdAt: string | null,
+  completedAt: string | null
+): { short: string; long: string } | null {
+  const c = parseDate(createdAt);
+  const d = parseDate(completedAt);
+  if (!c || !d) return null;
+  const ms = d.getTime() - c.getTime();
+  if (ms < 0) return null;
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) {
+    const m = Math.max(1, mins);
+    return { short: mins < 1 ? "<1m" : `${m}m`, long: mins < 1 ? "under a minute" : `${m} min` };
+  }
+  const hours = ms / 3_600_000;
+  if (hours < 24) {
+    const h = Math.round(hours);
+    return { short: `${h}h`, long: `${h} hour${h === 1 ? "" : "s"}` };
+  }
+  const days = Math.round(ms / 86_400_000);
+  return { short: `${days}d`, long: `${days} day${days === 1 ? "" : "s"}` };
+}
+
 export function formatDate(dateStr: string | null): string {
   const d = parseDate(dateStr);
   if (!d) return "—";

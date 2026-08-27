@@ -8,8 +8,8 @@ import {
   type Status,
   type Urgency,
 } from "@/lib/types";
-import { cn, relativeDue } from "@/lib/utils";
-import { CalendarDays } from "lucide-react";
+import { cn, cycleTime, relativeDue } from "@/lib/utils";
+import { CalendarDays, Check } from "lucide-react";
 
 export function StatusBadge({ status }: { status: Status }) {
   const meta = STATUS_META[status];
@@ -46,6 +46,27 @@ export function ProjectBadge({
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />
       {project.name}
+    </span>
+  );
+}
+
+/** Time-to-complete chip for done tasks (created → completed). */
+export function CycleBadge({
+  createdAt,
+  completedAt,
+}: {
+  createdAt: string;
+  completedAt: string | null;
+}) {
+  const ct = cycleTime(createdAt, completedAt);
+  if (!ct) return null;
+  return (
+    <span
+      title={`Completed in ${ct.long}`}
+      className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+    >
+      <Check className="h-3 w-3" />
+      {ct.short}
     </span>
   );
 }

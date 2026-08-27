@@ -4,7 +4,13 @@ import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "./Avatar";
-import { DueBadge, PointsBadge, ProjectBadge, UrgencyBadge } from "./Badges";
+import {
+  CycleBadge,
+  DueBadge,
+  PointsBadge,
+  ProjectBadge,
+  UrgencyBadge,
+} from "./Badges";
 import { StatusPicker } from "./Pickers";
 
 export function TaskRow({
@@ -59,8 +65,15 @@ export function TaskRow({
         <UrgencyBadge urgency={task.urgency} />
       </div>
 
-      <div className="w-16 text-right">
-        <DueBadge date={task.due_date} />
+      <div className="flex w-20 justify-end">
+        {done ? (
+          <CycleBadge
+            createdAt={task.created_at}
+            completedAt={task.completed_at}
+          />
+        ) : (
+          <DueBadge date={task.due_date} />
+        )}
       </div>
 
       <Avatar member={assignee} size="sm" />
