@@ -101,29 +101,15 @@ function ProjectCard({
             disabled={!editable}
             onChange={(color) => updateProject(project.id, { color })}
           />
-          {editable ? (
-            <input
-              value={project.name}
-              onChange={(e) =>
-                updateProject(project.id, { name: e.target.value })
-              }
-              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-base font-semibold text-fg outline-none hover:border-border focus:border-accent focus:bg-surface-2"
-            />
-          ) : (
-            <span className="truncate text-base font-semibold text-fg">
-              {project.name}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
           <Link
             href={`/project/${project.id}`}
-            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg"
-            title="Open project"
+            className="group flex min-w-0 items-center gap-1 truncate text-base font-semibold text-fg hover:text-accent"
           >
-            Open
-            <ArrowUpRight className="h-3.5 w-3.5" />
+            <span className="truncate">{project.name}</span>
+            <ArrowUpRight className="h-4 w-4 shrink-0 text-faint transition-colors group-hover:text-accent" />
           </Link>
+        </div>
+        <div className="flex items-center gap-2">
           <ProjectStatusPicker
             value={project.status}
             disabled={!editable}

@@ -82,17 +82,9 @@ function ClientCard({
             disabled={!editable}
             onChange={(color) => updateClient(client.id, { color })}
           />
-          {editable ? (
-            <input
-              value={client.name}
-              onChange={(e) => updateClient(client.id, { name: e.target.value })}
-              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-1 text-base font-semibold text-fg outline-none hover:border-border focus:border-accent focus:bg-surface-2"
-            />
-          ) : (
-            <span className="truncate text-base font-semibold text-fg">
-              {client.name}
-            </span>
-          )}
+          <span className="truncate text-base font-semibold text-fg">
+            {client.name}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button

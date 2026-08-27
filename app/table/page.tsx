@@ -33,7 +33,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 type SortKey = "due" | "urgency" | "status" | "title";
 const COLS =
@@ -353,74 +353,19 @@ function HeaderCell({
   );
 }
 
-function EditableTitle({
+function TitleCell({
   value,
   done,
   onOpen,
-  onRename,
 }: {
   value: string;
   done: boolean;
   onOpen: () => void;
-  onRename: (v: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [editing]);
-
-  useEffect(
-    () => () => {
-      if (clickTimer.current) clearTimeout(clickTimer.current);
-    },
-    []
-  );
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        defaultValue={value}
-        onBlur={(e) => {
-          onRename(e.target.value.trim() || value);
-          setEditing(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            onRename(e.currentTarget.value.trim() || value);
-            setEditing(false);
-          }
-          if (e.key === "Escape") setEditing(false);
-        }}
-        className="w-full min-w-0 truncate rounded-md border border-accent bg-surface-2 px-1.5 py-1 text-sm text-fg outline-none"
-      />
-    );
-  }
-
   return (
     <button
-      onClick={() => {
-        // Defer the open so a double-click (rename) can cancel it.
-        if (clickTimer.current) return;
-        clickTimer.current = setTimeout(() => {
-          clickTimer.current = null;
-          onOpen();
-        }, 200);
-      }}
-      onDoubleClick={() => {
-        if (clickTimer.current) {
-          clearTimeout(clickTimer.current);
-          clickTimer.current = null;
-        }
-        setEditing(true);
-      }}
-      title="Click to open · double-click to rename"
+      onClick={onOpen}
+      title="Open task"
       className={cn(
         "min-w-0 truncate rounded-md px-1.5 py-1 text-left text-sm text-fg transition-colors hover:bg-surface-2",
         done && "text-faint line-through"
@@ -458,11 +403,10 @@ function TableRow({
         onChange={onToggle}
         className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-accent"
       />
-      <EditableTitle
+      <TitleCell
         value={task.title}
         done={task.status === "done"}
         onOpen={onOpen}
-        onRename={(v) => onUpdate({ title: v })}
       />
       <ProjectPicker
         value={task.project_id}
