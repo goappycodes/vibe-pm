@@ -5,6 +5,7 @@ import type {
   ActivityEntry,
   AppSettings,
   Client,
+  Comment,
   Project,
   Status,
   Task,
@@ -24,6 +25,7 @@ import depsData from "@/data/task_dependencies.json";
 import updatesData from "@/data/updates.json";
 import activityData from "@/data/activity_log.json";
 import clientsData from "@/data/clients.json";
+import commentsData from "@/data/comments.json";
 import settingsData from "@/data/settings.json";
 
 export type ProjectFilter = string | "all";
@@ -47,6 +49,7 @@ interface State {
   dependencies: TaskDependency[];
   updates: Update[];
   activity: ActivityEntry[];
+  comments: Comment[];
   settings: AppSettings;
   loaded: boolean;
 
@@ -74,6 +77,9 @@ interface State {
   bulkDelete: (ids: string[]) => void;
   addDependency: (taskId: string, dependsOnId: string) => void;
   removeDependency: (taskId: string, dependsOnId: string) => void;
+  commentsForTask: (taskId: string) => Comment[];
+  addComment: (taskId: string, body: string) => void;
+  removeComment: (id: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -174,6 +180,7 @@ const REALTIME_MAP: Record<string, keyof State> = {
   tasks: "tasks",
   updates: "updates",
   activity_log: "activity",
+  comments: "comments",
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -184,6 +191,7 @@ export const useStore = create<State>((set, get) => ({
   dependencies: depsData as unknown as TaskDependency[],
   updates: updatesData as unknown as Update[],
   activity: activityData as unknown as ActivityEntry[],
+  comments: commentsData as unknown as Comment[],
   settings: settingsData as unknown as AppSettings,
   loaded: false,
 
@@ -200,11 +208,15 @@ export const useStore = create<State>((set, get) => ({
     get().dependencies.filter((d) => d.task_id === taskId),
   dependentsOf: (taskId) =>
     get().dependencies.filter((d) => d.depends_on_task_id === taskId),
+  commentsForTask: (taskId) =>
+    get()
+      .comments.filter((c) => c.task_id === taskId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at)),
 
   hydrate: async () => {
     if (!supabase || get().loaded) return;
     try {
-      const [m, c, p, t, d, u, a, s] = await Promise.all([
+      const [m, c, p, t, d, u, a, cm, s] = await Promise.all([
         supabase.from("team_members").select("*"),
         supabase.from("clients").select("*"),
         supabase.from("projects").select("*"),
@@ -212,10 +224,12 @@ export const useStore = create<State>((set, get) => ({
         supabase.from("task_dependencies").select("*"),
         supabase.from("updates").select("*"),
         supabase.from("activity_log").select("*"),
+        supabase.from("comments").select("*"),
         supabase.from("app_settings").select("*").eq("id", 1).single(),
       ]);
       const firstErr =
-        m.error || c.error || p.error || t.error || d.error || u.error || a.error;
+        m.error || c.error || p.error || t.error || d.error || u.error ||
+        a.error || cm.error;
       if (firstErr) throw firstErr;
       const members = (m.data as TeamMember[]) ?? get().members;
       // Point "current user" at the real admin (bundled u1 may not exist in DB).
@@ -232,6 +246,7 @@ export const useStore = create<State>((set, get) => ({
         dependencies: (d.data as TaskDependency[]) ?? get().dependencies,
         updates: (u.data as Update[]) ?? get().updates,
         activity: (a.data as ActivityEntry[]) ?? get().activity,
+        comments: (cm.data as Comment[]) ?? get().comments,
         settings: s.data
           ? {
               slack: (s.data as { slack: AppSettings["slack"] }).slack,
@@ -259,6 +274,7 @@ export const useStore = create<State>((set, get) => ({
       "task_dependencies",
       "updates",
       "activity_log",
+      "comments",
       "app_settings",
     ];
     tables.forEach((table) => {
@@ -459,6 +475,27 @@ export const useStore = create<State>((set, get) => ({
       task_id: taskId,
       depends_on_task_id: dependsOnId,
     });
+  },
+
+  addComment: (taskId, body) => {
+    const text = body.trim();
+    if (!text) return;
+    const comment: Comment = {
+      id: genId("cm"),
+      task_id: taskId,
+      author_id: get().currentUserId,
+      body: text,
+      created_at: nowISO(),
+    };
+    set((state) => ({ comments: [...state.comments, comment] }));
+    upsertRows("comments", [comment]);
+  },
+
+  removeComment: (id) => {
+    set((state) => ({
+      comments: state.comments.filter((c) => c.id !== id),
+    }));
+    deleteRow("comments", { id });
   },
 
   addMember: (partial) => {

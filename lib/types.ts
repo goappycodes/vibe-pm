@@ -99,6 +99,14 @@ export interface Update {
   created_at: string;
 }
 
+export interface Comment {
+  id: string;
+  task_id: string;
+  author_id: string | null;
+  body: string;
+  created_at: string;
+}
+
 export interface ActivityEntry {
   id: string;
   task_id: string;

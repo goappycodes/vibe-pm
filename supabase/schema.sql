@@ -2,6 +2,7 @@
 -- Text ids (u1, p1, t1…) match the app's data. Permissive RLS policies let the
 -- anon key read/write for the prototype; tighten these once magic-link auth is on.
 
+drop table if exists comments cascade;
 drop table if exists activity_log cascade;
 drop table if exists updates cascade;
 drop table if exists task_dependencies cascade;
@@ -95,6 +96,15 @@ create table activity_log (
 );
 create index activity_task_idx on activity_log(task_id);
 
+create table comments (
+  id text primary key,
+  task_id text references tasks(id) on delete cascade,
+  author_id text references team_members(id) on delete set null,
+  body text not null default '',
+  created_at timestamptz not null default now()
+);
+create index comments_task_idx on comments(task_id);
+
 create table app_settings (
   id integer primary key default 1 check (id = 1),
   slack jsonb not null,
@@ -107,7 +117,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','app_settings'
+    'updates','activity_log','comments','app_settings'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists %I on %I;', t||'_anon_all', t);
@@ -124,7 +134,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','app_settings'
+    'updates','activity_log','comments','app_settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);

@@ -8,12 +8,14 @@ import {
   ArrowRight,
   GitCommitVertical,
   Link2,
+  MessageSquare,
   Plus,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
 import { MenuItem, Popover } from "./Popover";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "./Avatar";
 import { ProjectBadge } from "./Badges";
@@ -57,6 +59,13 @@ export function TaskDetailDrawer() {
   const members = useStore((s) => s.members);
   const projects = useStore((s) => s.projects);
   const activity = useStore((s) => s.activity);
+  const comments = useStore((s) => s.comments);
+  const addComment = useStore((s) => s.addComment);
+  const removeComment = useStore((s) => s.removeComment);
+  const currentUserId = useStore((s) => s.currentUserId);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => setDraft(""), [detailTaskId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,6 +87,16 @@ export function TaskDetailDrawer() {
     .map((d) => tasks.find((t) => t.id === d.task_id))
     .filter(Boolean);
   const taskActivity = activity.filter((a) => a.task_id === task.id);
+  const taskComments = comments
+    .filter((c) => c.task_id === task.id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const currentUser = members.find((m) => m.id === currentUserId);
+
+  const postComment = () => {
+    if (!draft.trim()) return;
+    addComment(task.id, draft);
+    setDraft("");
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -276,6 +295,81 @@ export function TaskDetailDrawer() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* comments */}
+          <div className="border-b border-border px-4 py-3">
+            <div className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-faint">
+              <MessageSquare className="h-3.5 w-3.5" /> Comments
+              {taskComments.length > 0 && (
+                <span className="text-faint">· {taskComments.length}</span>
+              )}
+            </div>
+
+            {taskComments.length > 0 && (
+              <ul className="mb-3 space-y-3">
+                {taskComments.map((c) => {
+                  const author = members.find((m) => m.id === c.author_id);
+                  return (
+                    <li key={c.id} className="group flex gap-2.5">
+                      <Avatar member={author} size="sm" className="mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-fg">
+                            {author?.name.split(" ")[0] ?? "Someone"}
+                          </span>
+                          <span className="text-[11px] text-faint">
+                            {format(parseISO(c.created_at), "MMM d, h:mm a")}
+                          </span>
+                          {c.author_id === currentUserId && (
+                            <button
+                              onClick={() => removeComment(c.id)}
+                              className="ml-auto text-faint opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100"
+                              title="Delete comment"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-fg">
+                          {c.body}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="flex items-start gap-2.5">
+              <Avatar member={currentUser} size="sm" className="mt-1" />
+              <div className="min-w-0 flex-1">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      postComment();
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Add a comment…"
+                  className="input resize-none text-sm"
+                />
+                <div className="mt-1.5 flex items-center justify-between">
+                  <span className="text-[11px] text-faint">⌘↵ to send</span>
+                  <button
+                    onClick={postComment}
+                    disabled={!draft.trim()}
+                    className="btn-primary gap-1.5 py-1 text-xs disabled:opacity-40"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Comment
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* activity */}
