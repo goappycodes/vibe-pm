@@ -11,7 +11,8 @@ import {
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS, type Project } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-import { Check, Folder, Lock, Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Check, Folder, Lock, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 const PROJECT_STATUS: {
   v: Project["status"];
@@ -115,6 +116,14 @@ function ProjectCard({
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href={`/project/${project.id}`}
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+            title="Open project"
+          >
+            Open
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
           <ProjectStatusPicker
             value={project.status}
             disabled={!editable}

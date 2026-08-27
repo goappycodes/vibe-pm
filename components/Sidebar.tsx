@@ -145,7 +145,8 @@ export function Sidebar({
         {MANAGE.map((item) => {
           const active =
             pathname === item.href ||
-            (item.href === "/team" && pathname.startsWith("/member"));
+            (item.href === "/team" && pathname.startsWith("/member")) ||
+            (item.href === "/projects" && pathname.startsWith("/project/"));
           const Icon = item.icon;
           return (
             <Link

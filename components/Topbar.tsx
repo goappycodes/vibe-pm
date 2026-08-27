@@ -27,7 +27,9 @@ export function Topbar() {
   const pathname = usePathname();
   const meta = pathname.startsWith("/member")
     ? { title: "Team member", subtitle: "Workload, projects & tasks" }
-    : TITLES[pathname] ?? { title: "Vibe PM", subtitle: "" };
+    : pathname.startsWith("/project/")
+      ? { title: "Project", subtitle: "Overview, progress & tasks" }
+      : TITLES[pathname] ?? { title: "Vibe PM", subtitle: "" };
   const projects = useStore((s) => s.projects);
   const activeProject = useStore((s) => s.activeProject);
   const setActiveProject = useStore((s) => s.setActiveProject);
