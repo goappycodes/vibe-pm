@@ -105,25 +105,36 @@ note to the channel.
   first line, description = the full message + who posted it).
   Route: `POST /api/slack/interactivity` ([app/api/slack/interactivity/route.ts](app/api/slack/interactivity/route.ts)).
 
-Both verify Slack's request signature (`SLACK_SIGNING_SECRET`) and reject anything
-that doesn't match (bad signature → 401; requests older than 5 min are dropped).
-Verified locally end to end (task created with the right project/assignee/urgency;
-bad signature rejected).
+Verified locally end to end: a valid request creates the task with the right
+project / assignee / urgency.
 
-### Setup (one-time)
+### Runtime — pick one
 
-**1. Vercel env vars** (Project → Settings → Environment Variables, then redeploy):
-- `SLACK_SIGNING_SECRET` — Slack app → **Basic Information → Signing Secret**
-- `SUPABASE_SERVICE_ROLE_KEY` and `NEXT_PUBLIC_SUPABASE_URL` — from `.env.local`
-- `SLACK_BOT_TOKEN` — the `xoxb-…` token
-- `NEXT_PUBLIC_APP_URL` — optional; defaults to `https://vibe-pm-six.vercel.app`
+**A. Socket Mode (no public URL) — worker** ([scripts/slack-socket.mjs](scripts/slack-socket.mjs)) — *active*
 
-**2. Slack app** (https://api.slack.com/apps → your app):
-- **Slash Commands → Create New Command**: Command `/vibe`, Request URL
-  `https://vibe-pm-six.vercel.app/api/slack/command`, usage hint `<task title>`.
-- **Interactivity & Shortcuts → turn On**, Request URL
-  `https://vibe-pm-six.vercel.app/api/slack/interactivity`. Then **Create New
-  Shortcut → On messages**, name "Add to Vibe PM", callback id `vibe_add_task`.
-- **OAuth & Permissions → Bot Token Scopes**: add `commands`. **Reinstall** the app.
+Keeps a WebSocket open to Slack, so nothing is exposed publicly. It's a
+long-running process — run it on an **always-on host** (a small VM,
+Railway/Render/Fly, or any box that stays up). It **cannot** run on Vercel
+serverless, which can't hold a socket open.
 
-The command/shortcut only works in a channel that maps to a project.
+- Run: `node --env-file=.env.local scripts/slack-socket.mjs`
+- Env: `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN` (`xapp-…`, scope `connections:write`),
+  `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- Slack app (https://api.slack.com/apps → your app):
+  - **Socket Mode → On**.
+  - **Basic Information → App-Level Tokens → Generate** a token with
+    `connections:write` — that's `SLACK_APP_TOKEN`.
+  - **Slash Commands → Create New Command** `/vibe` (no Request URL needed).
+  - **Interactivity & Shortcuts → On** → **Create New Shortcut → On messages**,
+    name "Add to Vibe PM", callback id `vibe_add_task`.
+  - **OAuth & Permissions → Bot Token Scopes** → add `commands`. **Reinstall**.
+
+**B. HTTP routes (public Request URL) — alternative**
+
+`POST /api/slack/command` + `POST /api/slack/interactivity` on the deployed app.
+Needs `SLACK_SIGNING_SECRET` (+ `SUPABASE_SERVICE_ROLE_KEY`,
+`NEXT_PUBLIC_SUPABASE_URL`, `SLACK_BOT_TOKEN`) set in Vercel and the feature
+Request URLs pointed at those routes. Requests are signature-verified
+(bad/stale → 401). Use this only if you turn Socket Mode **off**.
+
+Either way, the command/shortcut only works in a channel that maps to a project.
