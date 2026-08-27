@@ -33,7 +33,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Link2, Plus, X } from "lucide-react";
+import { MenuItem, Popover } from "@/components/Popover";
+import { ChevronDown, Link2, Plus, Search, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -74,17 +75,34 @@ function findContainer(items: Columns, id: string): Status | undefined {
 
 export default function BoardPage() {
   const tasks = useStore((s) => s.tasks);
+  const members = useStore((s) => s.members);
+  const currentUserId = useStore((s) => s.currentUserId);
   const activeProject = useStore((s) => s.activeProject);
   const moveTaskStatus = useStore((s) => s.moveTaskStatus);
   const reorderColumn = useStore((s) => s.reorderColumn);
 
-  const visible = useMemo(
-    () =>
+  const [query, setQuery] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const hasFilters = query.trim() !== "" || assigneeFilter !== "all";
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (
       activeProject === "all"
         ? tasks
-        : tasks.filter((t) => t.project_id === activeProject),
-    [tasks, activeProject]
-  );
+        : tasks.filter((t) => t.project_id === activeProject)
+    ).filter((t) => {
+      if (q && !t.title.toLowerCase().includes(q)) return false;
+      if (assigneeFilter === "unassigned" && t.assignee_id) return false;
+      if (
+        assigneeFilter !== "all" &&
+        assigneeFilter !== "unassigned" &&
+        t.assignee_id !== assigneeFilter
+      )
+        return false;
+      return true;
+    });
+  }, [tasks, activeProject, query, assigneeFilter]);
   const tasksById = useMemo(() => {
     const m = new Map<string, Task>();
     for (const t of tasks) m.set(t.id, t);
@@ -216,6 +234,8 @@ export default function BoardPage() {
   };
 
   const activeTask = activeId ? tasksById.get(activeId) : null;
+  const activeAssignee = members.find((m) => m.id === assigneeFilter);
+  const visibleCount = visible.length;
 
   return (
     <DndContext
@@ -226,17 +246,120 @@ export default function BoardPage() {
       onDragEnd={onDragEnd}
       onDragCancel={reset}
     >
-      <div className="h-full overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full gap-3 px-4 py-4">
-          {STATUSES.map((status) => (
-            <Column
-              key={status}
-              status={status}
-              ids={items[status]}
-              tasksById={tasksById}
-              activeId={activeId}
+      <div className="flex h-full flex-col">
+        {/* filter toolbar */}
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+          <div className="relative w-56 max-w-full">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search cards…"
+              className="w-full rounded-lg border border-border bg-surface py-1.5 pl-8 pr-7 text-sm text-fg outline-none placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20"
             />
-          ))}
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-faint hover:text-fg"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() =>
+              setAssigneeFilter((a) => (a === currentUserId ? "all" : currentUserId))
+            }
+            className={cn(
+              "btn-outline",
+              assigneeFilter === currentUserId && "border-accent text-accent"
+            )}
+          >
+            Only mine
+          </button>
+
+          <Popover
+            width={220}
+            trigger={({ toggle }) => (
+              <button onClick={toggle} className="btn-outline gap-1.5">
+                {assigneeFilter === "all"
+                  ? "Assignee"
+                  : assigneeFilter === "unassigned"
+                    ? "Unassigned"
+                    : (activeAssignee?.name.split(" ")[0] ?? "Assignee")}
+                <ChevronDown className="h-3.5 w-3.5 text-faint" />
+              </button>
+            )}
+          >
+            {(close) => (
+              <div className="max-h-72 overflow-y-auto py-1">
+                <MenuItem
+                  active={assigneeFilter === "all"}
+                  onClick={() => {
+                    setAssigneeFilter("all");
+                    close();
+                  }}
+                >
+                  <span className="flex-1">Anyone</span>
+                </MenuItem>
+                <MenuItem
+                  active={assigneeFilter === "unassigned"}
+                  onClick={() => {
+                    setAssigneeFilter("unassigned");
+                    close();
+                  }}
+                >
+                  <span className="flex-1 text-muted">Unassigned</span>
+                </MenuItem>
+                {members
+                  .filter((m) => tasks.some((t) => t.assignee_id === m.id))
+                  .map((m) => (
+                    <MenuItem
+                      key={m.id}
+                      active={assigneeFilter === m.id}
+                      onClick={() => {
+                        setAssigneeFilter(m.id);
+                        close();
+                      }}
+                    >
+                      <Avatar member={m} size="sm" />
+                      <span className="flex-1 truncate">{m.name}</span>
+                    </MenuItem>
+                  ))}
+              </div>
+            )}
+          </Popover>
+
+          <span className="ml-auto text-xs text-faint">
+            {visibleCount} {visibleCount === 1 ? "card" : "cards"}
+          </span>
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setQuery("");
+                setAssigneeFilter("all");
+              }}
+              className="btn-ghost gap-1 text-xs text-muted"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex h-full gap-3 px-4 py-4">
+            {STATUSES.map((status) => (
+              <Column
+                key={status}
+                status={status}
+                ids={items[status]}
+                tasksById={tasksById}
+                activeId={activeId}
+              />
+            ))}
+          </div>
         </div>
       </div>
       <DragOverlay
