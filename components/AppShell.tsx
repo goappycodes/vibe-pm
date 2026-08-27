@@ -17,6 +17,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const closeDetail = useStore((s) => s.closeDetail);
   const hydrate = useStore((s) => s.hydrate);
   const subscribeRealtime = useStore((s) => s.subscribeRealtime);
+  const loaded = useStore((s) => s.loaded);
 
   // Reconcile with Supabase after the instant bundled render, then go live.
   useEffect(() => {
@@ -70,6 +71,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("popstate", applyFromUrl);
     return () => window.removeEventListener("popstate", applyFromUrl);
   }, [openDetail, closeDetail]);
+
+  // A deep-linked ?task= may be a DB-only task not present in the bundled data
+  // the first sync ran against — re-open it once hydration lands.
+  useEffect(() => {
+    if (!loaded) return;
+    const id = new URLSearchParams(window.location.search).get("task");
+    const state = useStore.getState();
+    if (id && !state.detailTaskId && state.tasks.some((t) => t.id === id)) {
+      openDetail(id);
+    }
+  }, [loaded, openDetail]);
 
   const wasOpen = useRef(false);
   useEffect(() => {
