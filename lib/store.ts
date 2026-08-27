@@ -194,7 +194,9 @@ export const useStore = create<State>((set, get) => ({
   activity: activityData as unknown as ActivityEntry[],
   comments: commentsData as unknown as Comment[],
   settings: settingsData as unknown as AppSettings,
-  loaded: false,
+  // With a backend configured, hold the shell (skeleton) until the first
+  // hydrate lands so we never flash bundled data; otherwise render immediately.
+  loaded: !supabase,
 
   currentUserId: "u1",
   activeProject: "all",
@@ -215,7 +217,12 @@ export const useStore = create<State>((set, get) => ({
       .sort((a, b) => a.created_at.localeCompare(b.created_at)),
 
   hydrate: async () => {
-    if (!supabase || get().loaded) return;
+    if (get().loaded) return;
+    if (!supabase) {
+      // No backend configured — the bundled data is all there is; show it now.
+      set({ loaded: true });
+      return;
+    }
     try {
       const [m, c, p, t, d, u, a, cm, s] = await Promise.all([
         supabase.from("team_members").select("*"),

@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { PageSkeleton } from "./Skeleton";
 import { Sidebar } from "./Sidebar";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
 import { Topbar } from "./Topbar";
@@ -116,7 +117,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar theme={theme} toggleTheme={toggleTheme} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+        <main className="min-h-0 flex-1 overflow-hidden">
+          {loaded ? children : <PageSkeleton />}
+        </main>
       </div>
       <CommandPalette />
       <KeyboardShortcuts />
