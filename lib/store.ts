@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type {
   ActivityEntry,
   AppSettings,
+  Attachment,
   Client,
   Comment,
   Project,
@@ -26,6 +27,7 @@ import updatesData from "@/data/updates.json";
 import activityData from "@/data/activity_log.json";
 import clientsData from "@/data/clients.json";
 import commentsData from "@/data/comments.json";
+import attachmentsData from "@/data/attachments.json";
 import settingsData from "@/data/settings.json";
 
 export type ProjectFilter = string | "all";
@@ -50,6 +52,7 @@ interface State {
   updates: Update[];
   activity: ActivityEntry[];
   comments: Comment[];
+  attachments: Attachment[];
   settings: AppSettings;
   loaded: boolean;
 
@@ -81,6 +84,9 @@ interface State {
   commentsForTask: (taskId: string) => Comment[];
   addComment: (taskId: string, body: string) => void;
   removeComment: (id: string) => void;
+  attachmentsForTask: (taskId: string) => Attachment[];
+  addAttachment: (taskId: string, file: File) => Promise<void>;
+  removeAttachment: (id: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -183,6 +189,7 @@ const REALTIME_MAP: Record<string, keyof State> = {
   updates: "updates",
   activity_log: "activity",
   comments: "comments",
+  attachments: "attachments",
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -194,6 +201,7 @@ export const useStore = create<State>((set, get) => ({
   updates: updatesData as unknown as Update[],
   activity: activityData as unknown as ActivityEntry[],
   comments: commentsData as unknown as Comment[],
+  attachments: attachmentsData as unknown as Attachment[],
   settings: settingsData as unknown as AppSettings,
   // With a backend configured, hold the shell (skeleton) until the first
   // hydrate lands so we never flash bundled data; otherwise render immediately.
@@ -216,6 +224,10 @@ export const useStore = create<State>((set, get) => ({
     get()
       .comments.filter((c) => c.task_id === taskId)
       .sort((a, b) => a.created_at.localeCompare(b.created_at)),
+  attachmentsForTask: (taskId) =>
+    get()
+      .attachments.filter((a) => a.task_id === taskId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at)),
 
   hydrate: async () => {
     if (get().loaded) return;
@@ -225,7 +237,7 @@ export const useStore = create<State>((set, get) => ({
       return;
     }
     try {
-      const [m, c, p, t, d, u, a, cm, s] = await Promise.all([
+      const [m, c, p, t, d, u, a, cm, at, s] = await Promise.all([
         supabase.from("team_members").select("*"),
         supabase.from("clients").select("*"),
         supabase.from("projects").select("*"),
@@ -234,11 +246,12 @@ export const useStore = create<State>((set, get) => ({
         supabase.from("updates").select("*"),
         supabase.from("activity_log").select("*"),
         supabase.from("comments").select("*"),
+        supabase.from("attachments").select("*"),
         supabase.from("app_settings").select("*").eq("id", 1).single(),
       ]);
       const firstErr =
         m.error || c.error || p.error || t.error || d.error || u.error ||
-        a.error || cm.error;
+        a.error || cm.error || at.error;
       if (firstErr) throw firstErr;
       const members = (m.data as TeamMember[]) ?? get().members;
       // Point "current user" at the real admin (bundled u1 may not exist in DB).
@@ -256,6 +269,7 @@ export const useStore = create<State>((set, get) => ({
         updates: (u.data as Update[]) ?? get().updates,
         activity: (a.data as ActivityEntry[]) ?? get().activity,
         comments: (cm.data as Comment[]) ?? get().comments,
+        attachments: (at.data as Attachment[]) ?? get().attachments,
         settings: s.data
           ? {
               slack: (s.data as { slack: AppSettings["slack"] }).slack,
@@ -284,6 +298,7 @@ export const useStore = create<State>((set, get) => ({
       "updates",
       "activity_log",
       "comments",
+      "attachments",
       "app_settings",
     ];
     tables.forEach((table) => {
@@ -516,6 +531,44 @@ export const useStore = create<State>((set, get) => ({
       comments: state.comments.filter((c) => c.id !== id),
     }));
     deleteRow("comments", { id });
+  },
+
+  addAttachment: async (taskId, file) => {
+    if (!supabase) return;
+    const path = `${taskId}/${genId("f")}_${file.name}`;
+    const { error } = await supabase.storage
+      .from("attachments")
+      .upload(path, file, { upsert: false });
+    if (error) {
+      console.error("[attachment] upload:", error.message);
+      return;
+    }
+    const { data: pub } = supabase.storage
+      .from("attachments")
+      .getPublicUrl(path);
+    const attachment: Attachment = {
+      id: genId("at"),
+      task_id: taskId,
+      author_id: get().currentUserId,
+      file_name: file.name,
+      file_path: path,
+      file_url: pub.publicUrl,
+      size: file.size,
+      created_at: nowISO(),
+    };
+    set((state) => ({ attachments: [...state.attachments, attachment] }));
+    upsertRows("attachments", [attachment]);
+  },
+
+  removeAttachment: (id) => {
+    const att = get().attachments.find((a) => a.id === id);
+    set((state) => ({
+      attachments: state.attachments.filter((a) => a.id !== id),
+    }));
+    deleteRow("attachments", { id });
+    if (att && supabase) {
+      void supabase.storage.from("attachments").remove([att.file_path]);
+    }
   },
 
   addMember: (partial) => {

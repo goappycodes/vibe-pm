@@ -6,16 +6,19 @@ import { cn, formatDateLong } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   ArrowRight,
+  FileText,
   GitCommitVertical,
   Link2,
+  Loader2,
   MessageSquare,
+  Paperclip,
   Plus,
   Send,
   Trash2,
   X,
 } from "lucide-react";
 import { MenuItem, Popover } from "./Popover";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "./Avatar";
 import { ProjectBadge } from "./Badges";
@@ -62,8 +65,13 @@ export function TaskDetailDrawer() {
   const comments = useStore((s) => s.comments);
   const addComment = useStore((s) => s.addComment);
   const removeComment = useStore((s) => s.removeComment);
+  const attachments = useStore((s) => s.attachments);
+  const addAttachment = useStore((s) => s.addAttachment);
+  const removeAttachment = useStore((s) => s.removeAttachment);
   const currentUserId = useStore((s) => s.currentUserId);
   const [draft, setDraft] = useState("");
+  const [uploading, setUploading] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setDraft(""), [detailTaskId]);
 
@@ -96,6 +104,17 @@ export function TaskDetailDrawer() {
     if (!draft.trim()) return;
     addComment(task.id, draft);
     setDraft("");
+  };
+
+  const taskAttachments = attachments.filter((a) => a.task_id === task.id);
+  const onFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const arr = Array.from(files);
+    setUploading((u) => u + arr.length);
+    for (const f of arr) {
+      await addAttachment(task.id, f);
+      setUploading((u) => u - 1);
+    }
   };
 
   return createPortal(
@@ -297,6 +316,74 @@ export function TaskDetailDrawer() {
             )}
           </div>
 
+          {/* attachments */}
+          <div className="border-b border-border px-4 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-faint">
+                <Paperclip className="h-3.5 w-3.5" /> Attachments
+                {taskAttachments.length > 0 && (
+                  <span className="text-faint">· {taskAttachments.length}</span>
+                )}
+              </div>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-accent hover:bg-accent-soft"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  onFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            {taskAttachments.length === 0 && uploading === 0 && (
+              <div className="text-xs text-faint">No files attached.</div>
+            )}
+            <div className="space-y-1">
+              {taskAttachments.map((a) => (
+                <div
+                  key={a.id}
+                  className="group flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5"
+                >
+                  <FileText className="h-4 w-4 shrink-0 text-faint" />
+                  <a
+                    href={a.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 truncate text-sm text-fg hover:text-accent"
+                  >
+                    {a.file_name}
+                  </a>
+                  <span className="shrink-0 text-[11px] text-faint">
+                    {formatSize(a.size)}
+                  </span>
+                  {a.author_id === currentUserId && (
+                    <button
+                      onClick={() => removeAttachment(a.id)}
+                      className="shrink-0 text-faint opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100"
+                      title="Remove attachment"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {uploading > 0 && (
+                <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-faint">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Uploading {uploading} file{uploading === 1 ? "" : "s"}…
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* comments */}
           <div className="border-b border-border px-4 py-3">
             <div className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-faint">
@@ -427,6 +514,13 @@ export function TaskDetailDrawer() {
     </div>,
     document.body
   );
+}
+
+function formatSize(bytes: number): string {
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function DepRow({

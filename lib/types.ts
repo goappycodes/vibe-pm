@@ -107,6 +107,17 @@ export interface Comment {
   created_at: string;
 }
 
+export interface Attachment {
+  id: string;
+  task_id: string;
+  author_id: string | null;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  size: number;
+  created_at: string;
+}
+
 export interface ActivityEntry {
   id: string;
   task_id: string;

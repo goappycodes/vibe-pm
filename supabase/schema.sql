@@ -2,6 +2,7 @@
 -- Text ids (u1, p1, t1…) match the app's data. Permissive RLS policies let the
 -- anon key read/write for the prototype; tighten these once magic-link auth is on.
 
+drop table if exists attachments cascade;
 drop table if exists comments cascade;
 drop table if exists activity_log cascade;
 drop table if exists updates cascade;
@@ -105,6 +106,21 @@ create table comments (
 );
 create index comments_task_idx on comments(task_id);
 
+-- Files live in the `attachments` Storage bucket (public); this table holds the
+-- metadata. Create the bucket + storage.objects policies separately (dashboard
+-- or scripts/attachments-setup) — they aren't part of the public schema here.
+create table attachments (
+  id text primary key,
+  task_id text references tasks(id) on delete cascade,
+  author_id text references team_members(id) on delete set null,
+  file_name text not null default '',
+  file_path text not null,
+  file_url text not null default '',
+  size bigint not null default 0,
+  created_at timestamptz not null default now()
+);
+create index attachments_task_idx on attachments(task_id);
+
 create table app_settings (
   id integer primary key default 1 check (id = 1),
   slack jsonb not null,
@@ -117,7 +133,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','comments','app_settings'
+    'updates','activity_log','comments','attachments','app_settings'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists %I on %I;', t||'_anon_all', t);
@@ -134,7 +150,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','comments','app_settings'
+    'updates','activity_log','comments','attachments','app_settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);
