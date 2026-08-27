@@ -8,6 +8,7 @@ import {
   CalendarCheck2,
   Folder,
   GanttChartSquare,
+  Gauge,
   KanbanSquare,
   Moon,
   Settings,
@@ -31,6 +32,7 @@ const MANAGE = [
   { href: "/projects", label: "Projects", icon: Folder },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/team", label: "Team", icon: Users2 },
+  { href: "/velocity", label: "Velocity", icon: Gauge },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

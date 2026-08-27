@@ -16,6 +16,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/team": { title: "Team", subtitle: "Members, roles & reporting" },
   "/projects": { title: "Projects", subtitle: "Manage projects, clients & channels" },
   "/clients": { title: "Clients", subtitle: "Client master" },
+  "/velocity": { title: "Velocity", subtitle: "Story points: allocated vs throughput" },
   "/settings": { title: "Settings", subtitle: "Slack & workspace preferences" },
 };
 
