@@ -15,6 +15,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const detailTaskId = useStore((s) => s.detailTaskId);
   const openDetail = useStore((s) => s.openDetail);
   const closeDetail = useStore((s) => s.closeDetail);
+  const hydrate = useStore((s) => s.hydrate);
+  const subscribeRealtime = useStore((s) => s.subscribeRealtime);
+
+  // Reconcile with Supabase after the instant bundled render, then go live.
+  useEffect(() => {
+    hydrate();
+    const unsubscribe = subscribeRealtime();
+    return unsubscribe;
+  }, [hydrate, subscribeRealtime]);
 
   useEffect(() => {
     const stored = (localStorage.getItem("vibe-theme") as Theme | null) ?? null;

@@ -1,14 +1,19 @@
 # Vibe PM — Frontend
 
-A fast, AI-native project manager for Appycodes. This repo is the **frontend prototype**, built on Next.js with **static JSON files as mock data** (no backend yet). It mirrors the surfaces described in the [technical brief](vibepmbrief-short.md).
+A fast, AI-native project manager for Appycodes. Built on Next.js, backed by **Supabase** (Postgres + realtime) with a **bundled-JSON fallback**. It mirrors the surfaces described in the [technical brief](vibepmbrief-short.md).
 
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript
+- **Supabase** — Postgres, RLS, realtime ([SUPABASE.md](SUPABASE.md))
 - **Tailwind CSS** — light/dark theme via CSS variables
-- **Zustand** — in-memory store (optimistic edits) hydrated from JSON
+- **Zustand** — in-memory store: instant render, optimistic writes persisted to Supabase, realtime sync
 - **@dnd-kit** — drag-and-drop on the board
 - **date-fns**, **lucide-react**
+
+## Data & speed
+
+Renders bundled `data/*.json` **instantly**, then hydrates from Supabase and goes live over realtime. Every edit is applied in memory immediately and persisted in the background; if Supabase isn't configured it stays on the bundled data. See [SUPABASE.md](SUPABASE.md) for schema + env setup (`npm run db:setup`).
 
 ## The four surfaces
 
