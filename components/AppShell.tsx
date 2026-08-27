@@ -3,6 +3,7 @@
 import { useStore } from "@/lib/store";
 import { useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { Sidebar } from "./Sidebar";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
 import { Topbar } from "./Topbar";
@@ -118,6 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
       </div>
       <CommandPalette />
+      <KeyboardShortcuts />
       <TaskDetailDrawer />
     </div>
   );
