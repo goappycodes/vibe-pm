@@ -29,8 +29,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDroppable } from "@dnd-kit/core";
-import { Link2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Link2, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Columns = Record<Status, string[]>;
 
@@ -187,6 +187,30 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const meta = STATUS_META[status];
+  const addTask = useStore((s) => s.addTask);
+  const activeProject = useStore((s) => s.activeProject);
+  const projects = useStore((s) => s.projects);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
+
+  const submit = () => {
+    const title = draft.trim();
+    if (!title) return;
+    addTask({
+      title,
+      status,
+      project_id:
+        activeProject !== "all" ? activeProject : projects[0]?.id,
+    });
+    setDraft("");
+    inputRef.current?.focus();
+  };
+
   return (
     <div className="flex h-full w-72 shrink-0 flex-col">
       <div className="mb-2 flex items-center gap-2 px-1">
@@ -213,13 +237,65 @@ function Column({
               />
             );
           })}
-          {ids.length === 0 && (
+          {ids.length === 0 && !adding && (
             <div className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-faint">
               Drop here
             </div>
           )}
         </div>
       </SortableContext>
+
+      {/* quick-add composer */}
+      <div className="mt-1 p-1">
+        {adding ? (
+          <div className="rounded-xl border border-border bg-surface p-2 shadow-soft">
+            <textarea
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submit();
+                } else if (e.key === "Escape") {
+                  setAdding(false);
+                  setDraft("");
+                }
+              }}
+              rows={2}
+              placeholder="Task title…"
+              className="w-full resize-none bg-transparent text-sm text-fg outline-none placeholder:text-faint"
+            />
+            <div className="mt-1 flex items-center gap-1.5">
+              <button
+                onClick={submit}
+                disabled={!draft.trim()}
+                className="btn-primary py-1 text-xs disabled:opacity-40"
+              >
+                Add task
+              </button>
+              <button
+                onClick={() => {
+                  setAdding(false);
+                  setDraft("");
+                }}
+                className="btn-ghost h-7 w-7 p-0"
+                aria-label="Cancel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-faint transition-colors hover:bg-surface-2 hover:text-fg"
+          >
+            <Plus className="h-4 w-4" />
+            Add task
+          </button>
+        )}
+      </div>
     </div>
   );
 }
