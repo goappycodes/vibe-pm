@@ -1,19 +1,21 @@
 "use client";
 
+import { ProjectPicker } from "@/components/Pickers";
 import { TaskRow } from "@/components/TaskRow";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { URGENCY_META } from "@/lib/types";
-import { cn, daysFromToday, TODAY } from "@/lib/utils";
+import { cn, daysFromToday, TODAY, toISODate } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   CircleDot,
+  Plus,
   Sun,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type BucketKey = "overdue" | "today" | "tomorrow" | "week" | "later" | "none";
 
@@ -125,6 +127,8 @@ export default function MyDayPage() {
           />
         </div>
 
+        <QuickAdd />
+
         {/* buckets */}
         <div className="space-y-6">
           {BUCKETS.map((bucket) => {
@@ -193,6 +197,55 @@ export default function MyDayPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickAdd() {
+  const addTask = useStore((s) => s.addTask);
+  const projects = useStore((s) => s.projects);
+  const currentUserId = useStore((s) => s.currentUserId);
+  const [title, setTitle] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pid = projectId || projects[0]?.id || "";
+
+  const submit = () => {
+    const t = title.trim();
+    if (!t || !pid) return;
+    addTask({
+      title: t,
+      assignee_id: currentUserId,
+      due_date: toISODate(TODAY),
+      status: "todo",
+      project_id: pid,
+    });
+    setTitle("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="mb-6 flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 shadow-soft transition-colors focus-within:border-accent">
+      <Plus className="h-4 w-4 shrink-0 text-faint" />
+      <input
+        ref={inputRef}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+        placeholder="Add a task for today…"
+        className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
+      />
+      <ProjectPicker value={pid} onChange={setProjectId} />
+      <button
+        onClick={submit}
+        disabled={!title.trim()}
+        className="btn-primary shrink-0 py-1 text-xs disabled:opacity-40"
+      >
+        Add
+      </button>
     </div>
   );
 }
