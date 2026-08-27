@@ -1,9 +1,13 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { authRequired, supabase } from "@/lib/supabase/client";
+import type { Session } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { LoginPage } from "./LoginPage";
 import { PageSkeleton } from "./Skeleton";
 import { Sidebar } from "./Sidebar";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
@@ -20,13 +24,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useStore((s) => s.hydrate);
   const subscribeRealtime = useStore((s) => s.subscribeRealtime);
   const loaded = useStore((s) => s.loaded);
+  const setCurrentUserByEmail = useStore((s) => s.setCurrentUserByEmail);
 
-  // Reconcile with Supabase after the instant bundled render, then go live.
+  // undefined = still checking; null = no session; Session = signed in.
+  const [session, setSession] = useState<Session | null | undefined>(
+    authRequired ? undefined : null
+  );
+  const authed = !authRequired || !!session;
+
   useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) =>
+      setSession(s)
+    );
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Reconcile with Supabase once signed in, then go live over realtime.
+  useEffect(() => {
+    if (!authed) return;
     hydrate();
     const unsubscribe = subscribeRealtime();
     return unsubscribe;
-  }, [hydrate, subscribeRealtime]);
+  }, [authed, hydrate, subscribeRealtime]);
+
+  // Point "current user" at the member whose email matches the session.
+  useEffect(() => {
+    const email = session?.user?.email;
+    if (email && loaded) setCurrentUserByEmail(email);
+  }, [session, loaded, setCurrentUserByEmail]);
 
   useEffect(() => {
     const stored = (localStorage.getItem("vibe-theme") as Theme | null) ?? null;
@@ -111,6 +138,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
   }, [detailTaskId]);
+
+  if (authRequired && session === undefined) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-bg">
+        <Loader2 className="h-6 w-6 animate-spin text-faint" />
+      </div>
+    );
+  }
+  if (authRequired && !session) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">

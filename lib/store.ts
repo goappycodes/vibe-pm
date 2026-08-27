@@ -104,6 +104,7 @@ interface State {
   openDetail: (id: string) => void;
   closeDetail: () => void;
   setCommandOpen: (open: boolean) => void;
+  setCurrentUserByEmail: (email: string) => void;
 }
 
 const nowISO = () => new Date().toISOString();
@@ -689,6 +690,13 @@ export const useStore = create<State>((set, get) => ({
   openDetail: (id) => set({ detailTaskId: id }),
   closeDetail: () => set({ detailTaskId: null }),
   setCommandOpen: (open) => set({ commandOpen: open }),
+  setCurrentUserByEmail: (email) =>
+    set((state) => {
+      const m = state.members.find(
+        (x) => x.email.toLowerCase() === email.toLowerCase()
+      );
+      return m ? { currentUserId: m.id } : {};
+    }),
 }));
 
 type RealtimePayload = {

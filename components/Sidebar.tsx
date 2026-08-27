@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { authRequired, supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -9,6 +10,7 @@ import {
   GanttChartSquare,
   Gauge,
   KanbanSquare,
+  LogOut,
   Moon,
   Settings,
   Sparkles,
@@ -134,6 +136,16 @@ export function Sidebar({
               <Moon className="h-4 w-4" />
             )}
           </button>
+          {authRequired && (
+            <button
+              onClick={() => supabase?.auth.signOut()}
+              className="btn-ghost h-8 w-8 p-0"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </aside>

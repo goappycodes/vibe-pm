@@ -10,8 +10,15 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 export const supabase: SupabaseClient | null =
   url && anonKey
     ? createClient(url, anonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
       })
     : null;
 
+// Whether login is required (a backend is configured). Without a backend the
+// app runs open on bundled demo data.
+export const authRequired = !!supabase;
 export const hasSupabase = !!supabase;
