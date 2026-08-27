@@ -17,6 +17,7 @@ type Theme = "light" | "dark";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const setCommandOpen = useStore((s) => s.setCommandOpen);
   const detailTaskId = useStore((s) => s.detailTaskId);
   const openDetail = useStore((s) => s.openDetail);
@@ -152,9 +153,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar theme={theme} toggleTheme={toggleTheme} />
+      <Sidebar
+        theme={theme}
+        toggleTheme={toggleTheme}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
+        <Topbar onMenu={() => setSidebarOpen(true)} />
         <main className="min-h-0 flex-1 overflow-hidden">
           {loaded ? children : <PageSkeleton />}
         </main>

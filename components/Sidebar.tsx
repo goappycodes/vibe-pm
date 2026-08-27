@@ -42,9 +42,13 @@ const MANAGE = [
 export function Sidebar({
   theme,
   toggleTheme,
+  open = false,
+  onClose,
 }: {
   theme: "light" | "dark";
   toggleTheme: () => void;
+  open?: boolean;
+  onClose?: () => void;
 }) {
   const pathname = usePathname();
   const currentUser = useStore((s) =>
@@ -52,7 +56,20 @@ export function Sidebar({
   );
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <>
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/30 md:hidden",
+          open ? "block" : "hidden"
+        )}
+        onClick={onClose}
+      />
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col border-r border-border bg-surface transition-transform duration-200 md:static md:z-auto md:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
       <div className="flex items-center gap-2 px-4 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-fg">
           <Sparkles className="h-4.5 w-4.5" strokeWidth={2.2} />
@@ -71,6 +88,7 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                 active
@@ -101,6 +119,7 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
                 active
@@ -150,6 +169,7 @@ export function Sidebar({
           )}
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

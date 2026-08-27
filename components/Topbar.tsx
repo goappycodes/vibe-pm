@@ -3,7 +3,7 @@
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Check, ChevronDown, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, Menu, Plus, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { MenuItem, Popover } from "./Popover";
 import { ViewSwitcher } from "./ViewSwitcher";
@@ -24,7 +24,7 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
 const VIEW_ROUTES = ["/my-day", "/table", "/board", "/timeline"];
 const FILTER_ROUTES = ["/table", "/board", "/timeline"];
 
-export function Topbar() {
+export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const pathname = usePathname();
   const meta = pathname.startsWith("/member")
     ? { title: "Team member", subtitle: "Workload, projects & tasks" }
@@ -49,12 +49,21 @@ export function Topbar() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/80 px-5 backdrop-blur">
-      <div className="min-w-0">
-        <h1 className="text-[15px] font-semibold leading-none text-fg">
-          {meta.title}
-        </h1>
-        <p className="mt-1 truncate text-xs text-faint">{meta.subtitle}</p>
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur sm:px-5">
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={onMenu}
+          className="btn-ghost h-9 w-9 shrink-0 p-0 md:hidden"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-[15px] font-semibold leading-none text-fg">
+            {meta.title}
+          </h1>
+          <p className="mt-1 truncate text-xs text-faint">{meta.subtitle}</p>
+        </div>
       </div>
 
       {showSwitcher && (
