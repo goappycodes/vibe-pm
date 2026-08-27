@@ -5,6 +5,7 @@
 drop table if exists attachments cascade;
 drop table if exists comments cascade;
 drop table if exists activity_log cascade;
+drop table if exists day_selections cascade;
 drop table if exists updates cascade;
 drop table if exists task_dependencies cascade;
 drop table if exists tasks cascade;
@@ -85,6 +86,18 @@ create table updates (
   created_at timestamptz not null default now()
 );
 
+-- Tasks a member has picked to work on for a given day ("My Day" plan). Drives
+-- the done-vs-pending progress on My Day and the story-point gate on /updates.
+create table day_selections (
+  id text primary key,
+  user_id text references team_members(id) on delete cascade,
+  date date not null,
+  task_id text references tasks(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, date, task_id)
+);
+create index day_selections_user_date_idx on day_selections(user_id, date);
+
 create table activity_log (
   id text primary key,
   task_id text references tasks(id) on delete cascade,
@@ -133,7 +146,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','activity_log','comments','attachments','app_settings'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists %I on %I;', t||'_anon_all', t);
@@ -150,7 +163,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','activity_log','comments','attachments','app_settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);

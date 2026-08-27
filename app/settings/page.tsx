@@ -217,7 +217,7 @@ export default function SettingsPage() {
             </div>
           </Row>
 
-          <Row label="Timezone" last>
+          <Row label="Timezone">
             {isAdmin ? (
               <input
                 value={settings.general.timezone}
@@ -226,6 +226,26 @@ export default function SettingsPage() {
               />
             ) : (
               <span className="text-sm text-fg">{settings.general.timezone}</span>
+            )}
+          </Row>
+
+          <Row label="Daily story-point goal" last>
+            {isAdmin ? (
+              <input
+                type="number"
+                min={0}
+                value={settings.general.min_daily_points ?? 3}
+                onChange={(e) =>
+                  setGeneral({
+                    min_daily_points: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+                className="input w-20 text-right"
+              />
+            ) : (
+              <span className="text-sm text-fg">
+                {settings.general.min_daily_points ?? 3} pts
+              </span>
             )}
           </Row>
         </section>

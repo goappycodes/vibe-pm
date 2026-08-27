@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
+import { DayPlanBanner } from "./DayPlanBanner";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { LoginPage } from "./LoginPage";
 import { PageSkeleton } from "./Skeleton";
@@ -161,8 +162,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setSidebarOpen(true)} />
-        <main className="min-h-0 flex-1 overflow-hidden">
-          {loaded ? children : <PageSkeleton />}
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {loaded ? (
+            <>
+              <DayPlanBanner />
+              <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+            </>
+          ) : (
+            <PageSkeleton />
+          )}
         </main>
       </div>
       <CommandPalette />

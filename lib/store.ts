@@ -7,6 +7,7 @@ import type {
   Attachment,
   Client,
   Comment,
+  DaySelection,
   Project,
   Status,
   Task,
@@ -15,7 +16,7 @@ import type {
   Update,
   Urgency,
 } from "./types";
-import { addDays, parseDate, toISODate } from "./utils";
+import { addDays, parseDate, TODAY, toISODate } from "./utils";
 import { supabase } from "./supabase/client";
 import { deleteRow, isRecentLocal, upsertRows } from "./supabase/persist";
 
@@ -28,6 +29,7 @@ import activityData from "@/data/activity_log.json";
 import clientsData from "@/data/clients.json";
 import commentsData from "@/data/comments.json";
 import attachmentsData from "@/data/attachments.json";
+import daySelectionsData from "@/data/day_selections.json";
 import settingsData from "@/data/settings.json";
 
 export type ProjectFilter = string | "all";
@@ -53,6 +55,7 @@ interface State {
   activity: ActivityEntry[];
   comments: Comment[];
   attachments: Attachment[];
+  daySelections: DaySelection[];
   settings: AppSettings;
   loaded: boolean;
 
@@ -89,6 +92,10 @@ interface State {
   removeAttachment: (id: string) => void;
   addUpdate: (rawText: string) => void;
   removeUpdate: (id: string) => void;
+
+  todayPlanTaskIds: () => string[];
+  addToDayPlan: (taskId: string) => void;
+  removeFromDayPlan: (taskId: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -192,6 +199,7 @@ const REALTIME_MAP: Record<string, keyof State> = {
   activity_log: "activity",
   comments: "comments",
   attachments: "attachments",
+  day_selections: "daySelections",
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -204,6 +212,7 @@ export const useStore = create<State>((set, get) => ({
   activity: activityData as unknown as ActivityEntry[],
   comments: commentsData as unknown as Comment[],
   attachments: attachmentsData as unknown as Attachment[],
+  daySelections: daySelectionsData as unknown as DaySelection[],
   settings: settingsData as unknown as AppSettings,
   // With a backend configured, hold the shell (skeleton) until the first
   // hydrate lands so we never flash bundled data; otherwise render immediately.
@@ -239,7 +248,7 @@ export const useStore = create<State>((set, get) => ({
       return;
     }
     try {
-      const [m, c, p, t, d, u, a, cm, at, s] = await Promise.all([
+      const [m, c, p, t, d, u, a, cm, at, ds, s] = await Promise.all([
         supabase.from("team_members").select("*"),
         supabase.from("clients").select("*"),
         supabase.from("projects").select("*"),
@@ -249,11 +258,12 @@ export const useStore = create<State>((set, get) => ({
         supabase.from("activity_log").select("*"),
         supabase.from("comments").select("*"),
         supabase.from("attachments").select("*"),
+        supabase.from("day_selections").select("*"),
         supabase.from("app_settings").select("*").eq("id", 1).single(),
       ]);
       const firstErr =
         m.error || c.error || p.error || t.error || d.error || u.error ||
-        a.error || cm.error || at.error;
+        a.error || cm.error || at.error || ds.error;
       if (firstErr) throw firstErr;
       const members = (m.data as TeamMember[]) ?? get().members;
       // Point "current user" at the real admin (bundled u1 may not exist in DB).
@@ -272,6 +282,7 @@ export const useStore = create<State>((set, get) => ({
         activity: (a.data as ActivityEntry[]) ?? get().activity,
         comments: (cm.data as Comment[]) ?? get().comments,
         attachments: (at.data as Attachment[]) ?? get().attachments,
+        daySelections: (ds.data as DaySelection[]) ?? get().daySelections,
         settings: s.data
           ? {
               slack: (s.data as { slack: AppSettings["slack"] }).slack,
@@ -298,6 +309,7 @@ export const useStore = create<State>((set, get) => ({
       "tasks",
       "task_dependencies",
       "updates",
+      "day_selections",
       "activity_log",
       "comments",
       "attachments",
@@ -459,10 +471,11 @@ export const useStore = create<State>((set, get) => ({
         (d) => d.task_id !== id && d.depends_on_task_id !== id
       ),
       activity: state.activity.filter((a) => a.task_id !== id),
+      daySelections: state.daySelections.filter((d) => d.task_id !== id),
       selectedTaskIds: state.selectedTaskIds.filter((x) => x !== id),
       detailTaskId: state.detailTaskId === id ? null : state.detailTaskId,
     }));
-    deleteRow("tasks", { id }); // DB cascades deps + activity
+    deleteRow("tasks", { id }); // DB cascades deps + activity + day_selections
   },
 
   bulkDelete: (ids) => {
@@ -473,6 +486,7 @@ export const useStore = create<State>((set, get) => ({
         (d) => !idSet.has(d.task_id) && !idSet.has(d.depends_on_task_id)
       ),
       activity: state.activity.filter((a) => !idSet.has(a.task_id)),
+      daySelections: state.daySelections.filter((d) => !idSet.has(d.task_id)),
       selectedTaskIds: [],
       detailTaskId:
         state.detailTaskId && idSet.has(state.detailTaskId)
@@ -592,6 +606,40 @@ export const useStore = create<State>((set, get) => ({
   removeUpdate: (id) => {
     set((state) => ({ updates: state.updates.filter((u) => u.id !== id) }));
     deleteRow("updates", { id });
+  },
+
+  todayPlanTaskIds: () => {
+    const state = get();
+    const date = toISODate(TODAY);
+    return state.daySelections
+      .filter((d) => d.user_id === state.currentUserId && d.date === date)
+      .map((d) => d.task_id);
+  },
+
+  addToDayPlan: (taskId) => {
+    const state = get();
+    const date = toISODate(TODAY);
+    const id = `ds_${state.currentUserId}_${date}_${taskId}`;
+    if (state.daySelections.some((d) => d.id === id)) return;
+    const row: DaySelection = {
+      id,
+      user_id: state.currentUserId,
+      date,
+      task_id: taskId,
+      created_at: nowISO(),
+    };
+    set({ daySelections: [...state.daySelections, row] });
+    upsertRows("day_selections", [row]);
+  },
+
+  removeFromDayPlan: (taskId) => {
+    const state = get();
+    const date = toISODate(TODAY);
+    const id = `ds_${state.currentUserId}_${date}_${taskId}`;
+    set({
+      daySelections: state.daySelections.filter((d) => d.id !== id),
+    });
+    deleteRow("day_selections", { id });
   },
 
   addMember: (partial) => {

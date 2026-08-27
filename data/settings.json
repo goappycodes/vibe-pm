@@ -20,6 +20,7 @@
     "org_name": "Appycodes",
     "default_view": "/my-day",
     "week_start": "monday",
-    "timezone": "Asia/Kolkata"
+    "timezone": "Asia/Kolkata",
+    "min_daily_points": 3
   }
 }

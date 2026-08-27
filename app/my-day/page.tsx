@@ -1,7 +1,10 @@
 "use client";
 
-import { ProjectPicker } from "@/components/Pickers";
+import { DayPlanPicker } from "@/components/DayPlanPicker";
+import { PointsBadge } from "@/components/Badges";
+import { ProjectPicker, StatusPicker } from "@/components/Pickers";
 import { TaskRow } from "@/components/TaskRow";
+import { useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { URGENCY_META } from "@/lib/types";
@@ -12,8 +15,10 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleDot,
+  ListPlus,
   Plus,
   Sun,
+  X,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
@@ -127,6 +132,8 @@ export default function MyDayPage() {
           />
         </div>
 
+        <TodayPlan />
+
         <QuickAdd />
 
         {/* buckets */}
@@ -197,6 +204,97 @@ export default function MyDayPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function TodayPlan() {
+  const updateTask = useStore((s) => s.updateTask);
+  const removeFromDayPlan = useStore((s) => s.removeFromDayPlan);
+  const { planTasks, doneTasks, totalPoints, minPoints, enough, pct } =
+    useTodayPlan();
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  return (
+    <div className="card mb-6 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-fg">Today&apos;s plan</h3>
+          {planTasks.length > 0 && (
+            <p className="mt-0.5 text-xs text-faint">
+              {doneTasks.length} of {planTasks.length} done · {totalPoints} pt
+              {totalPoints === 1 ? "" : "s"}
+              {!enough && (
+                <span className="text-amber-600">
+                  {" "}
+                  · plan {minPoints - totalPoints} more to post a standup
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setPickerOpen(true)}
+          className="btn-outline shrink-0 gap-1.5 text-xs"
+        >
+          <ListPlus className="h-3.5 w-3.5" />
+          {planTasks.length ? "Edit plan" : "Plan my day"}
+        </button>
+      </div>
+
+      {planTasks.length > 0 && (
+        <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+
+      {planTasks.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-8 text-center">
+          <p className="text-sm text-muted">
+            Pick what you&apos;re working on today.
+          </p>
+          <p className="mt-0.5 text-xs text-faint">
+            Selecting tasks unlocks your daily standup post.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-0.5">
+          {planTasks.map((t) => (
+            <div
+              key={t.id}
+              className="group flex items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-surface-2"
+            >
+              <StatusPicker
+                value={t.status}
+                onChange={(s) => updateTask(t.id, { status: s })}
+              />
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate text-sm text-fg",
+                  t.status === "done" && "text-faint line-through"
+                )}
+              >
+                {t.title}
+              </span>
+              {t.story_points != null && (
+                <PointsBadge points={t.story_points} />
+              )}
+              <button
+                onClick={() => removeFromDayPlan(t.id)}
+                className="shrink-0 text-faint opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100"
+                title="Remove from today"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pickerOpen && <DayPlanPicker onClose={() => setPickerOpen(false)} />}
     </div>
   );
 }

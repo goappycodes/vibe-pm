@@ -1,11 +1,13 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
+import { useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import type { UpdateSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { Send, X } from "lucide-react";
+import { Send, Sparkles, X } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 const SOURCE_META: Record<
@@ -38,13 +40,29 @@ export default function UpdatesPage() {
   );
   const addUpdate = useStore((s) => s.addUpdate);
   const removeUpdate = useStore((s) => s.removeUpdate);
+  const plan = useTodayPlan();
 
   const [completed, setCompleted] = useState("");
   const [inProgress, setInProgress] = useState("");
   const [blockers, setBlockers] = useState("");
 
-  const canPost =
+  const hasText =
     completed.trim() || inProgress.trim() || blockers.trim() ? true : false;
+  const canPost = hasText && plan.enough;
+
+  const generateFromPlan = () => {
+    const listOf = (items: typeof plan.planTasks) =>
+      items.map((t) => `• ${t.title}`).join("\n");
+    setCompleted(listOf(plan.doneTasks));
+    setBlockers(listOf(plan.blockedTasks));
+    setInProgress(
+      listOf(
+        plan.planTasks.filter(
+          (t) => t.status !== "done" && t.status !== "blocked"
+        )
+      )
+    );
+  };
 
   const post = () => {
     const parts: string[] = [];
@@ -80,11 +98,26 @@ export default function UpdatesPage() {
       <div className="mx-auto max-w-2xl px-6 py-6">
         {/* composer */}
         <div className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Avatar member={currentUser} size="sm" />
-            <span className="text-sm font-medium text-fg">
-              Post your daily update
-            </span>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Avatar member={currentUser} size="sm" />
+              <span className="text-sm font-medium text-fg">
+                Post your daily update
+              </span>
+            </div>
+            <button
+              onClick={generateFromPlan}
+              disabled={plan.planTasks.length === 0}
+              className="btn-outline gap-1.5 text-xs disabled:opacity-40"
+              title={
+                plan.planTasks.length === 0
+                  ? "Plan your day on My Day first"
+                  : "Fill from today's plan"
+              }
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Generate from today&apos;s plan
+            </button>
           </div>
           <div className="space-y-2">
             <Field
@@ -106,11 +139,29 @@ export default function UpdatesPage() {
               placeholder="Anything blocking you?"
             />
           </div>
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex items-center justify-between gap-3">
+            {!plan.enough && (
+              <p className="text-xs text-amber-600">
+                Plan at least {plan.minPoints} story point
+                {plan.minPoints === 1 ? "" : "s"} of work today to post
+                {plan.totalPoints > 0 && ` (currently ${plan.totalPoints})`}.{" "}
+                <Link
+                  href="/my-day"
+                  className="underline underline-offset-2 hover:no-underline"
+                >
+                  Plan my day
+                </Link>
+              </p>
+            )}
             <button
               onClick={post}
               disabled={!canPost}
-              className="btn-primary gap-1.5 disabled:opacity-40"
+              title={
+                !plan.enough
+                  ? "Select enough work for today before posting"
+                  : undefined
+              }
+              className="btn-primary ml-auto shrink-0 gap-1.5 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
               Post update

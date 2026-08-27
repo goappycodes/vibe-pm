@@ -80,6 +80,7 @@ export interface AppSettings {
     default_view: string; // route, e.g. /my-day
     week_start: "sunday" | "monday";
     timezone: string;
+    min_daily_points?: number; // story points required before the standup can post
   };
 }
 
@@ -96,6 +97,15 @@ export interface Update {
   raw_text: string;
   parsed: string;
   task_id: string | null;
+  created_at: string;
+}
+
+/** A task the user has picked to work on for a given day ("My Day" plan). */
+export interface DaySelection {
+  id: string;
+  user_id: string;
+  date: string; // ISO date, e.g. 2026-08-27
+  task_id: string;
   created_at: string;
 }
 
