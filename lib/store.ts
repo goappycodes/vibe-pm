@@ -72,6 +72,7 @@ interface State {
   updateTask: (id: string, patch: TaskPatch, source?: "ui" | "claude") => void;
   bulkUpdate: (ids: string[], patch: TaskPatch) => void;
   moveTaskStatus: (id: string, status: Status, order?: number) => void;
+  reorderColumn: (status: Status, orderedIds: string[]) => void;
   addTask: (partial: Partial<Task> & { title: string }) => string;
   deleteTask: (id: string) => void;
   bulkDelete: (ids: string[]) => void;
@@ -383,6 +384,17 @@ export const useStore = create<State>((set, get) => ({
     set({ tasks, activity: [...entries, ...state.activity] });
     upsertRows("tasks", get().tasks.filter((t) => t.id === id));
     if (entries.length) upsertRows("activity_log", entries);
+  },
+
+  reorderColumn: (status, orderedIds) => {
+    set((state) => ({
+      tasks: state.tasks.map((t) => {
+        const i = orderedIds.indexOf(t.id);
+        return i >= 0 ? { ...t, order: i } : t;
+      }),
+    }));
+    const changed = get().tasks.filter((t) => orderedIds.includes(t.id));
+    if (changed.length) upsertRows("tasks", changed);
   },
 
   addTask: (partial) => {
