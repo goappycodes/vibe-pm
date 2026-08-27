@@ -6,11 +6,14 @@ import { cn } from "@/lib/utils";
 import {
   CalendarCheck2,
   CornerDownLeft,
+  Folder,
   GanttChartSquare,
   KanbanSquare,
   Plus,
   Search,
   Table2,
+  UserPlus,
+  Users2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -30,8 +33,11 @@ export function CommandPalette() {
   const setOpen = useStore((s) => s.setCommandOpen);
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
+  const members = useStore((s) => s.members);
   const openDetail = useStore((s) => s.openDetail);
   const addTask = useStore((s) => s.addTask);
+  const addProject = useStore((s) => s.addProject);
+  const addMember = useStore((s) => s.addMember);
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -90,37 +96,101 @@ export function CommandPalette() {
           openDetail(id);
         },
       },
+      {
+        id: "new-project",
+        label: "Create project",
+        icon: <Folder className="h-4 w-4" />,
+        group: "Actions",
+        run: () => {
+          const id = addProject();
+          router.push(`/project/${id}`);
+        },
+      },
+      {
+        id: "new-member",
+        label: "Create team member",
+        icon: <UserPlus className="h-4 w-4" />,
+        group: "Actions",
+        run: () => {
+          addMember();
+          router.push("/team");
+        },
+      },
     ];
 
     const q = query.trim().toLowerCase();
-    const taskItems: CmdItem[] = tasks
-      .filter((t) => (q ? t.title.toLowerCase().includes(q) : false))
-      .slice(0, 8)
-      .map((t) => {
-        const project = projects.find((p) => p.id === t.project_id);
-        return {
-          id: `task-${t.id}`,
-          label: t.title,
-          hint: project?.name,
-          icon: (
-            <span
-              className={cn(
-                "h-2 w-2 rounded-full",
-                STATUS_META[t.status].dot
-              )}
-            />
-          ),
-          group: "Tasks",
-          run: () => openDetail(t.id),
-        };
-      });
+    const taskItems: CmdItem[] = q
+      ? tasks
+          .filter((t) => t.title.toLowerCase().includes(q))
+          .slice(0, 6)
+          .map((t) => {
+            const project = projects.find((p) => p.id === t.project_id);
+            return {
+              id: `task-${t.id}`,
+              label: t.title,
+              hint: project?.name,
+              icon: (
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    STATUS_META[t.status].dot
+                  )}
+                />
+              ),
+              group: "Tasks",
+              run: () => openDetail(t.id),
+            };
+          })
+      : [];
+
+    const projectItems: CmdItem[] = q
+      ? projects
+          .filter((p) => p.name.toLowerCase().includes(q))
+          .slice(0, 5)
+          .map((p) => ({
+            id: `project-${p.id}`,
+            label: p.name,
+            hint: p.slack_channel_id ? `#${p.slack_channel_id}` : undefined,
+            icon: <Folder className="h-4 w-4" />,
+            group: "Projects",
+            run: () => router.push(`/project/${p.id}`),
+          }))
+      : [];
+
+    const memberItems: CmdItem[] = q
+      ? members
+          .filter(
+            (m) =>
+              m.name.toLowerCase().includes(q) ||
+              m.email.toLowerCase().includes(q)
+          )
+          .slice(0, 5)
+          .map((m) => ({
+            id: `member-${m.id}`,
+            label: m.name,
+            hint: m.email,
+            icon: <Users2 className="h-4 w-4" />,
+            group: "People",
+            run: () => router.push(`/member/${m.id}`),
+          }))
+      : [];
 
     const navFiltered = q
       ? nav.filter((n) => n.label.toLowerCase().includes(q))
       : nav;
 
-    return [...navFiltered, ...taskItems];
-  }, [query, tasks, projects, router, addTask, openDetail]);
+    return [...navFiltered, ...taskItems, ...projectItems, ...memberItems];
+  }, [
+    query,
+    tasks,
+    projects,
+    members,
+    router,
+    addTask,
+    addProject,
+    addMember,
+    openDetail,
+  ]);
 
   useEffect(() => {
     setActive(0);
