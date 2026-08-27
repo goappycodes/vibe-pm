@@ -24,8 +24,11 @@ import { addDays, cn, daysFromToday, toISODate, TODAY } from "@/lib/utils";
 import {
   ArrowDownUp,
   Calendar,
+  Check,
+  ChevronDown,
   CircleUser,
   Maximize2,
+  Search,
   Signal,
   Trash2,
   X,
@@ -38,6 +41,7 @@ const COLS =
 
 export default function TablePage() {
   const tasks = useStore((s) => s.tasks);
+  const members = useStore((s) => s.members);
   const activeProject = useStore((s) => s.activeProject);
   const updateTask = useStore((s) => s.updateTask);
   const openDetail = useStore((s) => s.openDetail);
@@ -50,12 +54,36 @@ export default function TablePage() {
     key: "due",
     dir: 1,
   });
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  const hasFilters =
+    query.trim() !== "" || statusFilter !== "all" || assigneeFilter !== "all";
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setAssigneeFilter("all");
+  };
 
   const rows = useMemo(() => {
-    let list =
+    const q = query.trim().toLowerCase();
+    let list = (
       activeProject === "all"
         ? tasks
-        : tasks.filter((t) => t.project_id === activeProject);
+        : tasks.filter((t) => t.project_id === activeProject)
+    ).filter((t) => {
+      if (q && !t.title.toLowerCase().includes(q)) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      if (assigneeFilter === "unassigned" && t.assignee_id) return false;
+      if (
+        assigneeFilter !== "all" &&
+        assigneeFilter !== "unassigned" &&
+        t.assignee_id !== assigneeFilter
+      )
+        return false;
+      return true;
+    });
     const dir = sort.dir;
     list = [...list].sort((a, b) => {
       switch (sort.key) {
@@ -79,7 +107,7 @@ export default function TablePage() {
       }
     });
     return list;
-  }, [tasks, activeProject, sort]);
+  }, [tasks, activeProject, sort, query, statusFilter, assigneeFilter]);
 
   const allSelected = rows.length > 0 && rows.every((t) => selected.includes(t.id));
   const someSelected = selected.length > 0 && !allSelected;
@@ -92,8 +120,155 @@ export default function TablePage() {
   const setSortKey = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
 
+  const activeAssignee = members.find((m) => m.id === assigneeFilter);
+
   return (
     <div className="flex h-full flex-col">
+      {/* filter toolbar */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+        <div className="relative w-64 max-w-full">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search tasks…"
+            className="w-full rounded-lg border border-border bg-surface py-1.5 pl-8 pr-7 text-sm text-fg outline-none placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-faint hover:text-fg"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <Popover
+          width={180}
+          trigger={({ toggle }) => (
+            <button onClick={toggle} className="btn-outline gap-1.5">
+              {statusFilter === "all" ? (
+                "Status"
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      STATUS_META[statusFilter].dot
+                    )}
+                  />
+                  {STATUS_META[statusFilter].label}
+                </span>
+              )}
+              <ChevronDown className="h-3.5 w-3.5 text-faint" />
+            </button>
+          )}
+        >
+          {(close) => (
+            <div className="py-1">
+              <MenuItem
+                active={statusFilter === "all"}
+                onClick={() => {
+                  setStatusFilter("all");
+                  close();
+                }}
+              >
+                <span className="flex-1">All statuses</span>
+                {statusFilter === "all" && (
+                  <Check className="h-3.5 w-3.5 text-accent" />
+                )}
+              </MenuItem>
+              {STATUSES.map((s) => (
+                <MenuItem
+                  key={s}
+                  active={statusFilter === s}
+                  onClick={() => {
+                    setStatusFilter(s);
+                    close();
+                  }}
+                >
+                  <span
+                    className={cn("h-2 w-2 rounded-full", STATUS_META[s].dot)}
+                  />
+                  <span className={cn("flex-1", STATUS_META[s].color)}>
+                    {STATUS_META[s].label}
+                  </span>
+                  {statusFilter === s && (
+                    <Check className="h-3.5 w-3.5 text-accent" />
+                  )}
+                </MenuItem>
+              ))}
+            </div>
+          )}
+        </Popover>
+
+        <Popover
+          width={220}
+          trigger={({ toggle }) => (
+            <button onClick={toggle} className="btn-outline gap-1.5">
+              {assigneeFilter === "all"
+                ? "Assignee"
+                : assigneeFilter === "unassigned"
+                  ? "Unassigned"
+                  : (activeAssignee?.name.split(" ")[0] ?? "Assignee")}
+              <ChevronDown className="h-3.5 w-3.5 text-faint" />
+            </button>
+          )}
+        >
+          {(close) => (
+            <div className="max-h-72 overflow-y-auto py-1">
+              <MenuItem
+                active={assigneeFilter === "all"}
+                onClick={() => {
+                  setAssigneeFilter("all");
+                  close();
+                }}
+              >
+                <span className="flex-1">Anyone</span>
+              </MenuItem>
+              <MenuItem
+                active={assigneeFilter === "unassigned"}
+                onClick={() => {
+                  setAssigneeFilter("unassigned");
+                  close();
+                }}
+              >
+                <span className="flex-1 text-muted">Unassigned</span>
+              </MenuItem>
+              {members
+                .filter((m) => tasks.some((t) => t.assignee_id === m.id))
+                .map((m) => (
+                  <MenuItem
+                    key={m.id}
+                    active={assigneeFilter === m.id}
+                    onClick={() => {
+                      setAssigneeFilter(m.id);
+                      close();
+                    }}
+                  >
+                    <Avatar member={m} size="sm" />
+                    <span className="flex-1 truncate">{m.name}</span>
+                  </MenuItem>
+                ))}
+            </div>
+          )}
+        </Popover>
+
+        <span className="ml-auto text-xs text-faint">
+          {rows.length} {rows.length === 1 ? "task" : "tasks"}
+        </span>
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="btn-ghost gap-1 text-xs text-muted"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </button>
+        )}
+      </div>
+
       <div className="min-h-0 flex-1 overflow-auto">
         <div className="min-w-[900px]">
           {/* header */}
@@ -136,7 +311,9 @@ export default function TablePage() {
             ))}
             {rows.length === 0 && (
               <div className="px-4 py-16 text-center text-sm text-faint">
-                No tasks in this project.
+                {hasFilters
+                  ? "No tasks match your filters."
+                  : "No tasks in this project."}
               </div>
             )}
           </div>
