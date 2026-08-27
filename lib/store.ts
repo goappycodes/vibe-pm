@@ -14,6 +14,7 @@ import type {
   TaskDependency,
   TeamMember,
   Update,
+  UpdateSource,
   Urgency,
 } from "./types";
 import { addDays, parseDate, TODAY, toISODate } from "./utils";
@@ -90,7 +91,7 @@ interface State {
   attachmentsForTask: (taskId: string) => Attachment[];
   addAttachment: (taskId: string, file: File) => Promise<void>;
   removeAttachment: (id: string) => void;
-  addUpdate: (rawText: string) => void;
+  addUpdate: (rawText: string, source?: UpdateSource) => void;
   removeUpdate: (id: string) => void;
 
   todayPlanTaskIds: () => string[];
@@ -587,13 +588,13 @@ export const useStore = create<State>((set, get) => ({
     }
   },
 
-  addUpdate: (rawText) => {
+  addUpdate: (rawText, source = "ui") => {
     const text = rawText.trim();
     if (!text) return;
     const update: Update = {
       id: genId("up"),
       author_id: get().currentUserId,
-      source: "ui",
+      source,
       raw_text: text,
       parsed: "",
       task_id: null,

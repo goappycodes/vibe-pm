@@ -1,12 +1,12 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
-import { useTodayPlan } from "@/lib/dayPlan";
+import { postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import type { UpdateSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { Send, Sparkles, X } from "lucide-react";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -40,11 +40,14 @@ export default function UpdatesPage() {
   );
   const addUpdate = useStore((s) => s.addUpdate);
   const removeUpdate = useStore((s) => s.removeUpdate);
+  const channels = useStore((s) => s.settings.slack.channels);
   const plan = useTodayPlan();
 
   const [completed, setCompleted] = useState("");
   const [inProgress, setInProgress] = useState("");
   const [blockers, setBlockers] = useState("");
+  const [posting, setPosting] = useState(false);
+  const [postMsg, setPostMsg] = useState<string | null>(null);
 
   const hasText =
     completed.trim() || inProgress.trim() || blockers.trim() ? true : false;
@@ -64,13 +67,30 @@ export default function UpdatesPage() {
     );
   };
 
-  const post = () => {
+  const post = async () => {
+    if (posting) return;
     const parts: string[] = [];
     if (completed.trim()) parts.push(`✅ Completed\n${completed.trim()}`);
     if (inProgress.trim()) parts.push(`🔨 In progress\n${inProgress.trim()}`);
     if (blockers.trim()) parts.push(`🚧 Blockers\n${blockers.trim()}`);
     if (!parts.length) return;
-    addUpdate(parts.join("\n\n"));
+    const feedText = parts.join("\n\n");
+    const slackText = `*${currentUser?.name ?? "Someone"}* — daily update\n\n${feedText}`;
+
+    setPosting(true);
+    setPostMsg(null);
+    const hint =
+      channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+    const res = await postStandupToSlack(slackText, hint);
+    addUpdate(feedText, res.ok ? "slack" : "ui");
+    setPostMsg(
+      res.ok
+        ? `Posted to ${res.channel ?? "Slack"} ✓`
+        : res.dryRun
+          ? "Saved — Slack not connected yet"
+          : `Saved — Slack error${res.error ? `: ${res.error}` : ""}`
+    );
+    setPosting(false);
     setCompleted("");
     setInProgress("");
     setBlockers("");
@@ -140,7 +160,7 @@ export default function UpdatesPage() {
             />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
-            {!plan.enough && (
+            {!plan.enough ? (
               <p className="text-xs text-amber-600">
                 Plan at least {plan.minPoints} story point
                 {plan.minPoints === 1 ? "" : "s"} of work today to post
@@ -152,18 +172,35 @@ export default function UpdatesPage() {
                   Plan my day
                 </Link>
               </p>
+            ) : (
+              postMsg && (
+                <p
+                  className={cn(
+                    "min-w-0 truncate text-xs",
+                    postMsg.startsWith("Posted")
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-amber-600"
+                  )}
+                >
+                  {postMsg}
+                </p>
+              )
             )}
             <button
               onClick={post}
-              disabled={!canPost}
+              disabled={!canPost || posting}
               title={
                 !plan.enough
                   ? "Select enough work for today before posting"
-                  : undefined
+                  : "Post to the team's Slack standup channel"
               }
               className="btn-primary ml-auto shrink-0 gap-1.5 disabled:opacity-40"
             >
-              <Send className="h-4 w-4" />
+              {posting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
               Post update
             </button>
           </div>

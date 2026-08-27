@@ -13,6 +13,23 @@ it fires for changes from any door — the dashboard, Claude, or Slack itself.
   - UPDATE → `:pencil2: *<title>* — status X → *Y*, assignee → …, due → …`
   - DELETE → `:wastebasket: *Task removed* — <title>`
 
+## Daily standup (My Day plan → Slack)
+
+A member picks their tasks for the day on **My Day**, then hits **Post to Slack**
+to send the plan as a daily standup to the team's **standup channel**. The same
+posting also happens from the **/updates** composer's *Post update* button. Each
+post is mirrored into the in-app updates feed (tagged **Slack** when it actually
+reached Slack, **Dashboard** on a dry-run).
+
+- **Route:** `POST /api/slack/standup` ([app/api/slack/standup/route.ts](app/api/slack/standup/route.ts))
+- Body: `{ text, channel? }`. The composed message groups the picked tasks by
+  Completed / Planned / Blockers with a story-point tally.
+- **Channel resolution:** `SLACK_STANDUP_CHANNEL` (env) → the client's hint (the
+  workspace channel named `standups`) → `#standups`. Set the env to a channel
+  **ID** the bot is in for reliable delivery.
+- **Dry-run:** with no `SLACK_BOT_TOKEN` it logs the standup instead of posting.
+  Verified locally (`{"ok":false,"dryRun":true,"channel":"#standups"}`).
+
 ## Setup (one-time)
 
 ### 1. Slack app + bot token
@@ -26,6 +43,8 @@ it fires for changes from any door — the dashboard, Claude, or Slack itself.
 
 ### 2. Environment variables (Vercel → Settings → Environment Variables)
 - `SLACK_BOT_TOKEN` = the `xoxb-…` token (secret)
+- `SLACK_STANDUP_CHANNEL` = the standup channel **ID** (e.g. `C0…`) the bot is in
+  (optional — falls back to `#standups`)
 - `SUPABASE_WEBHOOK_SECRET` = a long random string (secret)
 - `SUPABASE_SERVICE_ROLE_KEY` = your service-role key (secret — used server-side
   only to look up the channel/member names)

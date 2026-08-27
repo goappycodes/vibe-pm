@@ -4,7 +4,7 @@ import { DayPlanPicker } from "@/components/DayPlanPicker";
 import { PointsBadge } from "@/components/Badges";
 import { ProjectPicker, StatusPicker } from "@/components/Pickers";
 import { TaskRow } from "@/components/TaskRow";
-import { useTodayPlan } from "@/lib/dayPlan";
+import { composeStandup, postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { URGENCY_META } from "@/lib/types";
@@ -16,7 +16,9 @@ import {
   ChevronDown,
   CircleDot,
   ListPlus,
+  Loader2,
   Plus,
+  Send,
   Sun,
   X,
 } from "lucide-react";
@@ -211,9 +213,43 @@ export default function MyDayPage() {
 function TodayPlan() {
   const updateTask = useStore((s) => s.updateTask);
   const removeFromDayPlan = useStore((s) => s.removeFromDayPlan);
-  const { planTasks, doneTasks, totalPoints, minPoints, enough, pct } =
+  const addUpdate = useStore((s) => s.addUpdate);
+  const currentUser = useStore((s) =>
+    s.members.find((m) => m.id === s.currentUserId)
+  );
+  const channels = useStore((s) => s.settings.slack.channels);
+  const { today, planTasks, doneTasks, blockedTasks, totalPoints, minPoints, enough, pct } =
     useTodayPlan();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [posting, setPosting] = useState(false);
+  const [postMsg, setPostMsg] = useState<string | null>(null);
+
+  const submitStandup = async () => {
+    if (!planTasks.length || posting) return;
+    setPosting(true);
+    setPostMsg(null);
+    const text = composeStandup({
+      memberName: currentUser?.name,
+      today,
+      planTasks,
+      doneTasks,
+      blockedTasks,
+      totalPoints,
+    });
+    const hint =
+      channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+    const res = await postStandupToSlack(text, hint);
+    // Record it in the updates feed either way; tag the source by what happened.
+    addUpdate(text, res.ok ? "slack" : "ui");
+    setPostMsg(
+      res.ok
+        ? `Posted to ${res.channel ?? "Slack"} ✓`
+        : res.dryRun
+          ? "Saved to updates — Slack not connected yet"
+          : `Saved to updates — Slack error${res.error ? `: ${res.error}` : ""}`
+    );
+    setPosting(false);
+  };
 
   return (
     <div className="card mb-6 p-4">
@@ -291,6 +327,36 @@ function TodayPlan() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {planTasks.length > 0 && (
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+          <p
+            className={cn(
+              "min-w-0 truncate text-xs",
+              postMsg?.startsWith("Posted")
+                ? "text-emerald-600 dark:text-emerald-400"
+                : postMsg
+                  ? "text-amber-600"
+                  : "text-faint"
+            )}
+          >
+            {postMsg ?? "Share today's plan with the team on Slack."}
+          </p>
+          <button
+            onClick={submitStandup}
+            disabled={posting}
+            className="btn-primary shrink-0 gap-1.5 text-xs disabled:opacity-40"
+            title="Post this plan as your daily update to Slack"
+          >
+            {posting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
+            Post to Slack
+          </button>
         </div>
       )}
 

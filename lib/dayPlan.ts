@@ -1,7 +1,9 @@
 "use client";
 
+import { format, parseISO } from "date-fns";
 import { useMemo } from "react";
 import { useStore } from "./store";
+import type { Task } from "./types";
 import { TODAY, toISODate } from "./utils";
 
 const DEFAULT_MIN_DAILY_POINTS = 3;
@@ -52,4 +54,68 @@ export function useTodayPlan() {
     enough: totalPoints >= minPoints,
     pct,
   };
+}
+
+/**
+ * Render a day plan as a Slack-friendly standup message: who, the date, and the
+ * picked tasks grouped by completed / in-progress / blocked, with a point tally.
+ */
+export function composeStandup(opts: {
+  memberName: string | undefined;
+  today: string;
+  planTasks: Task[];
+  doneTasks: Task[];
+  blockedTasks: Task[];
+  totalPoints: number;
+}): string {
+  const { memberName, today, planTasks, doneTasks, blockedTasks, totalPoints } =
+    opts;
+  const inProgress = planTasks.filter(
+    (t) => t.status !== "done" && t.status !== "blocked"
+  );
+  const list = (items: Task[]) =>
+    items.map((t) => `• ${t.title}`).join("\n");
+
+  let dateLabel = today;
+  try {
+    dateLabel = format(parseISO(today), "EEE, MMM d");
+  } catch {
+    /* keep ISO fallback */
+  }
+
+  const parts: string[] = [
+    `*${memberName ?? "Someone"}* — daily plan · ${dateLabel}`,
+  ];
+  if (doneTasks.length) parts.push(`✅ Completed\n${list(doneTasks)}`);
+  if (inProgress.length)
+    parts.push(`🔨 Planned / in progress\n${list(inProgress)}`);
+  if (blockedTasks.length) parts.push(`🚧 Blockers\n${list(blockedTasks)}`);
+  parts.push(
+    `📌 ${planTasks.length} task${planTasks.length === 1 ? "" : "s"} · ${totalPoints} pt${totalPoints === 1 ? "" : "s"}`
+  );
+  return parts.join("\n\n");
+}
+
+export type StandupPostResult = {
+  ok: boolean;
+  dryRun?: boolean;
+  error?: string;
+  channel?: string;
+};
+
+/** Post standup text to the team's Slack standup channel via the server route. */
+export async function postStandupToSlack(
+  text: string,
+  channel?: string
+): Promise<StandupPostResult> {
+  try {
+    const res = await fetch("/api/slack/standup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, channel }),
+    });
+    return (await res.json()) as StandupPostResult;
+  } catch {
+    return { ok: false, error: "network" };
+  }
 }
