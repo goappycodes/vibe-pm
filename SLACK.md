@@ -20,8 +20,9 @@ app, Slack, or a script — with no app server, Vercel, or webhook involved.
   outage can never roll back a task or comment write. `order`-only updates (drag
   reordering) don't post — only status/assignee/due/title/urgency changes do.
 - Verified end to end (INSERT/UPDATE/COMMENT/DELETE → HTTP 200, `ok:true`):
-  - INSERT → `:new: *New task* — *<title>* · <assignee> · due <date> · <status>`
-  - UPDATE → `:pencil2: *<title>* — status X → *Y*, assignee → …`
+  - INSERT → `:new: *New task* — *<title>* · <assignee> · due <date> · <status> · <link|open>`
+  - UPDATE → `:pencil2: *<title>* — status X → *Y*, assignee → … · <link|open>`
+  - New-task and change posts include a clickable deep link into the exact task.
   - COMMENT → `:speech_balloon: *<author>* commented on *<title>* > <body>`
   - DELETE → `:wastebasket: *Task removed* — <title>`
 - **Turn off:** `drop trigger trg_slack_tasks on tasks;` and

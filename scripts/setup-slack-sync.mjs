@@ -85,17 +85,22 @@ returns trigger language plpgsql security definer
 set search_path = public, private as $fn$
 declare
   v_channel text; v_text text; v_assignee text; v_changes text[]; v_heading text;
+  v_link text;
   st jsonb := '{"backlog":"Backlog","todo":"To do","in_progress":"In progress","blocked":"Blocked","in_review":"In review","done":"Done"}'::jsonb;
 begin
   v_channel := private.slack_channel_for(coalesce(NEW.project_id, OLD.project_id));
   if v_channel is null then return coalesce(NEW, OLD); end if;
+
+  -- Clickable deep link into the exact task in the app.
+  v_link := '  ·  <https://vibe-pm-six.vercel.app/board?task=' ||
+            coalesce(NEW.id, OLD.id) || '|open>';
 
   if TG_OP = 'INSERT' then
     select name into v_assignee from public.team_members where id = NEW.assignee_id;
     v_text := ':new: *New task* — *' || NEW.title || '*  ·  ' ||
       coalesce(v_assignee, 'Unassigned') ||
       coalesce('  ·  due ' || NEW.due_date::text, '') ||
-      '  ·  ' || coalesce(st->>NEW.status, NEW.status);
+      '  ·  ' || coalesce(st->>NEW.status, NEW.status) || v_link;
   elsif TG_OP = 'DELETE' then
     v_text := ':wastebasket: *Task removed* — ' || OLD.title;
   else
@@ -120,7 +125,7 @@ begin
     end if;
     if array_length(v_changes, 1) is null then return NEW; end if;
     v_text := ':pencil2: *' || coalesce(v_heading, NEW.title) || '* — ' ||
-              array_to_string(v_changes, ', ');
+              array_to_string(v_changes, ', ') || v_link;
   end if;
 
   perform private.slack_post(v_channel, v_text);
