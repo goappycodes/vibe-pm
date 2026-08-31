@@ -227,12 +227,13 @@ function TodayPlan() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
-  const submitStandup = async () => {
-    if (!planTasks.length || posting) return;
-    setPosting(true);
-    setPostMsg(null);
-    const text = composeStandup({
+  const channelName =
+    channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+
+  const buildStandup = () =>
+    composeStandup({
       memberName: currentUser?.name,
       today,
       planTasks,
@@ -241,9 +242,14 @@ function TodayPlan() {
       totalPoints,
       minutesLogged,
     });
-    const hint =
-      channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
-    const res = await postStandupToSlack(text, hint);
+
+  // Send exactly what the preview shows — no surprises about what hits Slack.
+  const sendStandup = async () => {
+    if (!planTasks.length || posting) return;
+    setPosting(true);
+    setPostMsg(null);
+    const text = preview ?? buildStandup();
+    const res = await postStandupToSlack(text, channelName);
     // Record it in the updates feed either way; tag the source by what happened.
     addUpdate(text, res.ok ? "slack" : "ui");
     setPostMsg(
@@ -254,6 +260,7 @@ function TodayPlan() {
           : `Saved to updates — Slack error${res.error ? `: ${res.error}` : ""}`
     );
     setPosting(false);
+    setPreview(null);
   };
 
   return (
@@ -335,7 +342,7 @@ function TodayPlan() {
         </div>
       )}
 
-      {planTasks.length > 0 && (
+      {planTasks.length > 0 && preview === null && (
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
           <p
             className={cn(
@@ -350,18 +357,53 @@ function TodayPlan() {
             {postMsg ?? "Share today's plan with the team on Slack."}
           </p>
           <button
-            onClick={submitStandup}
-            disabled={posting}
-            className="btn-primary shrink-0 gap-1.5 text-xs disabled:opacity-40"
-            title="Post this plan as your daily update to Slack"
+            onClick={() => {
+              setPostMsg(null);
+              setPreview(buildStandup());
+            }}
+            className="btn-primary shrink-0 gap-1.5 text-xs"
+            title="Preview and post this plan as your daily update to Slack"
           >
-            {posting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Send className="h-3.5 w-3.5" />
-            )}
+            <Send className="h-3.5 w-3.5" />
             Post to Slack
           </button>
+        </div>
+      )}
+
+      {preview !== null && (
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-muted">
+              Preview · posts to your team&apos;s standup channel
+            </span>
+            <span className="text-[11px] text-faint">
+              also saved to Updates
+            </span>
+          </div>
+          <pre className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-3 text-xs leading-relaxed text-fg">
+            {preview}
+          </pre>
+          <div className="mt-2 flex items-center justify-end gap-2">
+            <button
+              onClick={() => setPreview(null)}
+              disabled={posting}
+              className="btn-ghost text-xs text-muted disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={sendStandup}
+              disabled={posting}
+              className="btn-primary shrink-0 gap-1.5 text-xs disabled:opacity-40"
+            >
+              {posting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              Send to Slack
+            </button>
+          </div>
         </div>
       )}
 
