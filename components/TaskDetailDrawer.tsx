@@ -3,11 +3,20 @@ import { EditableText } from "./EditableText";
 
 import { useStore } from "@/lib/store";
 import { STATUS_META, type UpdateSource } from "@/lib/types";
-import { cn, cycleTime, formatDateLong } from "@/lib/utils";
+import {
+  cn,
+  cycleTime,
+  firstName,
+  formatClock,
+  formatDate,
+  formatDateLong,
+  formatDuration,
+} from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   ArrowRight,
   Check,
+  Clock,
   FileText,
   GitCommitVertical,
   Link2,
@@ -63,6 +72,7 @@ export function TaskDetailDrawer() {
   const dependencies = useStore((s) => s.dependencies);
   const tasks = useStore((s) => s.tasks);
   const members = useStore((s) => s.members);
+  const timeLogs = useStore((s) => s.timeLogs);
   const projects = useStore((s) => s.projects);
   const activity = useStore((s) => s.activity);
   const comments = useStore((s) => s.comments);
@@ -233,6 +243,63 @@ export function TaskDetailDrawer() {
               className="w-full resize-none rounded-lg border border-transparent bg-transparent text-sm leading-relaxed text-fg outline-none placeholder:text-faint hover:border-border focus:border-accent focus:bg-surface-2 px-2 py-1.5 -mx-2"
             />
           </div>
+
+          {/* time logged */}
+          {(() => {
+            const logs = timeLogs
+              .filter((l) => l.task_id === task.id)
+              .sort((a, b) => b.created_at.localeCompare(a.created_at));
+            const total = logs.reduce((s, l) => s + l.minutes, 0);
+            return (
+              <div className="border-b border-border px-4 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-faint">
+                    <Clock className="h-3.5 w-3.5" /> Time logged
+                  </div>
+                  {total > 0 && (
+                    <span className="text-xs font-semibold tabular-nums text-fg">
+                      {formatDuration(total)}
+                    </span>
+                  )}
+                </div>
+                {logs.length === 0 ? (
+                  <p className="text-xs text-faint">
+                    No time logged yet — start the timer above.
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {logs.slice(0, 8).map((l) => {
+                      const who = members.find((m) => m.id === l.user_id);
+                      return (
+                        <div
+                          key={l.id}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <span className="w-14 shrink-0 font-medium tabular-nums text-fg">
+                            {formatDuration(l.minutes)}
+                          </span>
+                          <span className="truncate text-faint">
+                            {formatDate(l.date)} · {formatClock(l.start_time)}–
+                            {formatClock(l.end_time)}
+                          </span>
+                          {who && (
+                            <span className="ml-auto shrink-0 text-muted">
+                              {firstName(who.name)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {logs.length > 8 && (
+                      <p className="pt-0.5 text-[11px] text-faint">
+                        +{logs.length - 8} more
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* dependencies */}
           <div className="border-b border-border px-4 py-3">
