@@ -17,6 +17,7 @@ import {
   Sparkles,
   Sun,
   Table2,
+  Timer,
   Users2,
 } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +29,7 @@ const NAV = [
   { href: "/table", label: "Table", icon: Table2 },
   { href: "/board", label: "Board", icon: KanbanSquare },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+  { href: "/time-log", label: "Time Log", icon: Timer },
   { href: "/updates", label: "Updates", icon: MessageSquare },
 ];
 

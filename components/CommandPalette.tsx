@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Table2,
+  Timer,
   UserPlus,
   Users2,
 } from "lucide-react";
@@ -85,6 +86,14 @@ export function CommandPalette() {
         icon: <GanttChartSquare className="h-4 w-4" />,
         group: "Navigate",
         run: () => router.push("/timeline"),
+      },
+      {
+        id: "nav-time-log",
+        label: "Go to Time Log",
+        hint: "Log hours",
+        icon: <Timer className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/time-log"),
       },
       {
         id: "new-task",

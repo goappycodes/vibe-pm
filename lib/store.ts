@@ -13,11 +13,18 @@ import type {
   Task,
   TaskDependency,
   TeamMember,
+  TimeLog,
   Update,
   UpdateSource,
   Urgency,
 } from "./types";
-import { addDays, parseDate, TODAY, toISODate } from "./utils";
+import {
+  addDays,
+  minutesBetween,
+  parseDate,
+  TODAY,
+  toISODate,
+} from "./utils";
 import { supabase } from "./supabase/client";
 import { deleteRow, isRecentLocal, upsertRows } from "./supabase/persist";
 
@@ -31,9 +38,20 @@ import clientsData from "@/data/clients.json";
 import commentsData from "@/data/comments.json";
 import attachmentsData from "@/data/attachments.json";
 import daySelectionsData from "@/data/day_selections.json";
+import timeLogsData from "@/data/time_logs.json";
 import settingsData from "@/data/settings.json";
 
 export type ProjectFilter = string | "all";
+
+export interface TimeLogInput {
+  project_id: string | null;
+  task_id: string | null;
+  date: string;
+  start_time: string;
+  end_time: string;
+  note?: string;
+  user_id?: string;
+}
 
 interface TaskPatch {
   title?: string;
@@ -57,6 +75,7 @@ interface State {
   comments: Comment[];
   attachments: Attachment[];
   daySelections: DaySelection[];
+  timeLogs: TimeLog[];
   settings: AppSettings;
   loaded: boolean;
 
@@ -97,6 +116,11 @@ interface State {
   todayPlanTaskIds: (userId?: string) => string[];
   addToDayPlan: (taskId: string, userId?: string) => void;
   removeFromDayPlan: (taskId: string, userId?: string) => void;
+
+  timeLogsFor: (userId: string, date: string) => TimeLog[];
+  addTimeLog: (input: TimeLogInput) => string | null;
+  updateTimeLog: (id: string, patch: Partial<TimeLogInput>) => void;
+  removeTimeLog: (id: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -201,6 +225,7 @@ const REALTIME_MAP: Record<string, keyof State> = {
   comments: "comments",
   attachments: "attachments",
   day_selections: "daySelections",
+  time_logs: "timeLogs",
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -214,6 +239,7 @@ export const useStore = create<State>((set, get) => ({
   comments: commentsData as unknown as Comment[],
   attachments: attachmentsData as unknown as Attachment[],
   daySelections: daySelectionsData as unknown as DaySelection[],
+  timeLogs: timeLogsData as unknown as TimeLog[],
   settings: settingsData as unknown as AppSettings,
   // With a backend configured, hold the shell (skeleton) until the first
   // hydrate lands so we never flash bundled data; otherwise render immediately.
@@ -249,7 +275,7 @@ export const useStore = create<State>((set, get) => ({
       return;
     }
     try {
-      const [m, c, p, t, d, u, a, cm, at, ds, s] = await Promise.all([
+      const [m, c, p, t, d, u, a, cm, at, ds, tl, s] = await Promise.all([
         supabase.from("team_members").select("*"),
         supabase.from("clients").select("*"),
         supabase.from("projects").select("*"),
@@ -260,11 +286,12 @@ export const useStore = create<State>((set, get) => ({
         supabase.from("comments").select("*"),
         supabase.from("attachments").select("*"),
         supabase.from("day_selections").select("*"),
+        supabase.from("time_logs").select("*"),
         supabase.from("app_settings").select("*").eq("id", 1).single(),
       ]);
       const firstErr =
         m.error || c.error || p.error || t.error || d.error || u.error ||
-        a.error || cm.error || at.error || ds.error;
+        a.error || cm.error || at.error || ds.error || tl.error;
       if (firstErr) throw firstErr;
       const members = (m.data as TeamMember[]) ?? get().members;
       // Point "current user" at the real admin (bundled u1 may not exist in DB).
@@ -284,6 +311,7 @@ export const useStore = create<State>((set, get) => ({
         comments: (cm.data as Comment[]) ?? get().comments,
         attachments: (at.data as Attachment[]) ?? get().attachments,
         daySelections: (ds.data as DaySelection[]) ?? get().daySelections,
+        timeLogs: (tl.data as TimeLog[]) ?? get().timeLogs,
         settings: s.data
           ? {
               slack: (s.data as { slack: AppSettings["slack"] }).slack,
@@ -311,6 +339,7 @@ export const useStore = create<State>((set, get) => ({
       "task_dependencies",
       "updates",
       "day_selections",
+      "time_logs",
       "activity_log",
       "comments",
       "attachments",
@@ -644,6 +673,52 @@ export const useStore = create<State>((set, get) => ({
       daySelections: state.daySelections.filter((d) => d.id !== id),
     });
     deleteRow("day_selections", { id });
+  },
+
+  timeLogsFor: (userId, date) =>
+    get()
+      .timeLogs.filter((l) => l.user_id === userId && l.date === date)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+
+  addTimeLog: (input) => {
+    const state = get();
+    const minutes = minutesBetween(input.start_time, input.end_time);
+    if (minutes === null) return null; // caller validates; belt and braces
+    const row: TimeLog = {
+      id: genId("tl"),
+      user_id: input.user_id ?? state.currentUserId,
+      project_id: input.project_id,
+      task_id: input.task_id,
+      date: input.date,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      minutes,
+      note: input.note ?? "",
+      created_at: nowISO(),
+    };
+    set({ timeLogs: [row, ...state.timeLogs] });
+    upsertRows("time_logs", [row]);
+    return row.id;
+  },
+
+  updateTimeLog: (id, patch) => {
+    const existing = get().timeLogs.find((l) => l.id === id);
+    if (!existing) return;
+    const next: TimeLog = {
+      ...existing,
+      ...patch,
+      note: patch.note ?? existing.note,
+    };
+    next.minutes = minutesBetween(next.start_time, next.end_time) ?? existing.minutes;
+    set((state) => ({
+      timeLogs: state.timeLogs.map((l) => (l.id === id ? next : l)),
+    }));
+    upsertRows("time_logs", [next]);
+  },
+
+  removeTimeLog: (id) => {
+    set((state) => ({ timeLogs: state.timeLogs.filter((l) => l.id !== id) }));
+    deleteRow("time_logs", { id });
   },
 
   addMember: (partial) => {

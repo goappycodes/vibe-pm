@@ -253,3 +253,17 @@ export const PROJECT_COLORS: Record<
     text: "text-sky-600 dark:text-sky-300",
   },
 };
+
+/** A stretch of work someone logged against a task: date + clock times. */
+export interface TimeLog {
+  id: string;
+  user_id: string;
+  project_id: string | null;
+  task_id: string | null;
+  date: string; // ISO date, e.g. 2026-08-26
+  start_time: string; // "HH:MM", 24h
+  end_time: string; // "HH:MM", 24h
+  minutes: number; // derived from start/end, stored so totals and exports are cheap
+  note: string;
+  created_at: string;
+}

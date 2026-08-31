@@ -15,7 +15,7 @@ A fast, AI-native project manager for Appycodes. Built on Next.js, backed by **S
 
 Renders bundled `data/*.json` **instantly**, then hydrates from Supabase and goes live over realtime. Every edit is applied in memory immediately and persisted in the background; if Supabase isn't configured it stays on the bundled data. See [SUPABASE.md](SUPABASE.md) for schema + env setup (`npm run db:setup`).
 
-## The four surfaces
+## The surfaces
 
 | View | What it does |
 |---|---|
@@ -23,6 +23,7 @@ Renders bundled `data/*.json` **instantly**, then hydrates from Supabase and goe
 | **Table** | Dense grid — inline-editable cells, multi-select, sortable columns, and a bulk-edit toolbar (reassign / restatus / reschedule many at once). |
 | **Board** | Kanban by status with drag-and-drop between columns. |
 | **Timeline** | Gantt-style view — bars sized by effort, a "today" line, and dependency connectors that turn red where a slip puts a dependent at risk. |
+| **Time Log** | One-line entry bar: search your tasks by name, project auto-fills, add a remark and start/end times. Entries group under date headers with a daily total and edit in place. Admins also get client / project / member filters over a date range, totals by member and project, a “who hasn’t logged” list, and a CSV export (client, project, task, hours) that follows the filters. |
 
 Plus: a **command palette** (`⌘K` / `Ctrl-K`) to jump between views and search tasks, and a **task detail drawer** with editable fields, dependencies, and an activity log.
 
@@ -51,7 +52,7 @@ npm run build
 ## Structure
 
 ```
-app/            # routes: my-day, table, board, timeline
+app/            # routes: my-day, table, board, timeline, time-log
 components/     # Sidebar, Topbar, pickers, drawer, command palette, cards
 lib/            # types, zustand store, utils
 data/           # static JSON mock data

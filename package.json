@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:setup": "node --env-file=.env.local scripts/db-setup.mjs"
+    "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
+    "db:time-logs": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/add-time-logs.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

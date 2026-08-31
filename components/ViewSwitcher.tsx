@@ -6,6 +6,7 @@ import {
   GanttChartSquare,
   KanbanSquare,
   Table2,
+  Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +16,7 @@ const VIEWS = [
   { href: "/table", label: "Table", icon: Table2 },
   { href: "/board", label: "Board", icon: KanbanSquare },
   { href: "/timeline", label: "Timeline", icon: GanttChartSquare },
+  { href: "/time-log", label: "Time Log", icon: Timer },
 ];
 
 export function ViewSwitcher() {

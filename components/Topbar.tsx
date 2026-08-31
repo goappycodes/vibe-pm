@@ -13,6 +13,10 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/table": { title: "Table", subtitle: "Dense grid — inline & bulk edit" },
   "/board": { title: "Board", subtitle: "Kanban by status" },
   "/timeline": { title: "Timeline", subtitle: "Due dates & dependencies" },
+  "/time-log": {
+    title: "Time Log",
+    subtitle: "Log hours against tasks — and see where they went",
+  },
   "/updates": { title: "Updates", subtitle: "Daily standups — post & catch up" },
   "/team": { title: "Team", subtitle: "Members, roles & reporting" },
   "/projects": { title: "Projects", subtitle: "Manage projects, clients & channels" },
@@ -21,8 +25,16 @@ const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/settings": { title: "Settings", subtitle: "Slack & workspace preferences" },
 };
 
-const VIEW_ROUTES = ["/my-day", "/table", "/board", "/timeline"];
+const VIEW_ROUTES = [
+  "/my-day",
+  "/table",
+  "/board",
+  "/timeline",
+  "/time-log",
+];
 const FILTER_ROUTES = ["/table", "/board", "/timeline"];
+// Time Log has its own entry bar — a stray "New task" there would confuse.
+const NEW_TASK_ROUTES = ["/my-day", "/table", "/board", "/timeline"];
 
 export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const pathname = usePathname();
@@ -40,7 +52,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   const showProjectFilter = FILTER_ROUTES.includes(pathname);
   const showSwitcher = VIEW_ROUTES.includes(pathname);
-  const showNewTask = VIEW_ROUTES.includes(pathname);
+  const showNewTask = NEW_TASK_ROUTES.includes(pathname);
   const active = projects.find((p) => p.id === activeProject);
 
   const handleNew = () => {

@@ -5,6 +5,7 @@
 drop table if exists attachments cascade;
 drop table if exists comments cascade;
 drop table if exists activity_log cascade;
+drop table if exists time_logs cascade;
 drop table if exists day_selections cascade;
 drop table if exists updates cascade;
 drop table if exists task_dependencies cascade;
@@ -98,6 +99,25 @@ create table day_selections (
 );
 create index day_selections_user_date_idx on day_selections(user_id, date);
 
+-- Time tracking: one row per stretch of work, entered as date + clock times
+-- so it stays timezone-free. minutes is derived from start/end and stored so
+-- totals and exports do not have to re-parse every row.
+create table time_logs (
+  id text primary key,
+  user_id text references team_members(id) on delete cascade,
+  project_id text references projects(id) on delete set null,
+  task_id text references tasks(id) on delete set null,
+  date date not null,
+  start_time text not null default '00:00',
+  end_time text not null default '00:00',
+  minutes integer not null default 0,
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index time_logs_user_date_idx on time_logs(user_id, date);
+create index time_logs_date_idx on time_logs(date);
+create index time_logs_project_idx on time_logs(project_id);
+
 create table activity_log (
   id text primary key,
   task_id text references tasks(id) on delete cascade,
@@ -146,7 +166,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','day_selections','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','time_logs','activity_log','comments','attachments','app_settings'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists %I on %I;', t||'_anon_all', t);
@@ -163,7 +183,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','day_selections','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','time_logs','activity_log','comments','attachments','app_settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);

@@ -30,6 +30,16 @@ npm run db:setup
 
 Applies `supabase/schema.sql` (tables, indexes, permissive RLS policies, realtime publication) and seeds from `data/*.json` via the ap-south-1 pooler. You can also paste `supabase/schema.sql` into the Supabase SQL editor.
 
+## Additive migrations
+
+`schema.sql` **drops and recreates** every table, so never run `db:setup`
+against a database with real data. Feature migrations are additive and safe to
+re-run:
+
+```bash
+npm run db:time-logs   # creates time_logs (+ indexes, RLS, realtime)
+```
+
 ## Deploying to Vercel
 
 Add these to the Vercel project's Environment Variables, then redeploy:
