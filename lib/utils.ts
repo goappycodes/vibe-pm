@@ -153,6 +153,16 @@ export function decimalHours(minutes: number): number {
   return Math.round((minutes / 60) * 100) / 100;
 }
 
+/** "09:50" + 25 → "10:15". Clamps at 23:59 rather than wrapping past midnight. */
+export function addMinutesToClock(hhmm: string, mins: number): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return hhmm;
+  const total = Math.min(23 * 60 + 59, Number(m[1]) * 60 + Number(m[2]) + mins);
+  const h = Math.floor(total / 60);
+  const min = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
 /** "14:05" → "2:05 pm" */
 export function formatClock(hhmm: string): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());

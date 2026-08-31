@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Avatar } from "./Avatar";
 import { ProjectBadge } from "./Badges";
+import { TaskTimerButton } from "./TimerBar";
 import {
   AssigneePicker,
   DatePicker,
@@ -163,6 +164,10 @@ export function TaskDetailDrawer() {
               className="w-full resize-none bg-transparent text-lg font-semibold leading-snug text-fg outline-none placeholder:text-faint"
               placeholder="Task title"
             />
+          </div>
+
+          <div className="px-4 pt-2">
+            <TaskTimerButton taskId={task.id} />
           </div>
 
           <div className="border-b border-border px-4 pb-3">

@@ -12,6 +12,7 @@ import { LoginPage } from "./LoginPage";
 import { PageSkeleton } from "./Skeleton";
 import { Sidebar } from "./Sidebar";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
+import { TimerBar } from "./TimerBar";
 import { Topbar } from "./Topbar";
 
 type Theme = "light" | "dark";
@@ -176,6 +177,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <KeyboardShortcuts />
       <TaskDetailDrawer />
+      <TimerBar />
     </div>
   );
 }

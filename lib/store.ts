@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import {
   addDays,
+  addMinutesToClock,
   minutesBetween,
   parseDate,
   TODAY,
@@ -51,6 +52,32 @@ export interface TimeLogInput {
   end_time: string;
   note?: string;
   user_id?: string;
+}
+
+/** A live, running timer (Clockify-style). Local to the device until stopped. */
+export interface RunningTimer {
+  taskId: string;
+  startedAt: number; // epoch ms
+}
+
+const TIMER_KEY = "vibe-running-timer";
+function loadTimer(): RunningTimer | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(TIMER_KEY);
+    return raw ? (JSON.parse(raw) as RunningTimer) : null;
+  } catch {
+    return null;
+  }
+}
+function saveTimer(t: RunningTimer | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (t) localStorage.setItem(TIMER_KEY, JSON.stringify(t));
+    else localStorage.removeItem(TIMER_KEY);
+  } catch {
+    /* private mode / disabled storage — timer just won't survive reload */
+  }
 }
 
 interface TaskPatch {
@@ -121,6 +148,11 @@ interface State {
   addTimeLog: (input: TimeLogInput) => string | null;
   updateTimeLog: (id: string, patch: Partial<TimeLogInput>) => void;
   removeTimeLog: (id: string) => void;
+
+  runningTimer: RunningTimer | null;
+  startTimer: (taskId: string) => void;
+  stopTimer: () => void; // logs the elapsed time
+  cancelTimer: () => void; // discards without logging
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -250,6 +282,7 @@ export const useStore = create<State>((set, get) => ({
   selectedTaskIds: [],
   detailTaskId: null,
   commandOpen: false,
+  runningTimer: loadTimer(),
 
   memberById: (id) => get().members.find((m) => m.id === id),
   projectById: (id) => get().projects.find((p) => p.id === id),
@@ -719,6 +752,40 @@ export const useStore = create<State>((set, get) => ({
   removeTimeLog: (id) => {
     set((state) => ({ timeLogs: state.timeLogs.filter((l) => l.id !== id) }));
     deleteRow("time_logs", { id });
+  },
+
+  startTimer: (taskId) => {
+    // Starting a new timer while one runs logs the previous one first.
+    if (get().runningTimer) get().stopTimer();
+    const t: RunningTimer = { taskId, startedAt: Date.now() };
+    set({ runningTimer: t });
+    saveTimer(t);
+  },
+
+  stopTimer: () => {
+    const rt = get().runningTimer;
+    if (!rt) return;
+    const task = get().tasks.find((t) => t.id === rt.taskId);
+    const minutes = Math.max(1, Math.round((Date.now() - rt.startedAt) / 60000));
+    const start = new Date(rt.startedAt);
+    const startClock = `${String(start.getHours()).padStart(2, "0")}:${String(
+      start.getMinutes()
+    ).padStart(2, "0")}`;
+    set({ runningTimer: null });
+    saveTimer(null);
+    get().addTimeLog({
+      project_id: task?.project_id ?? null,
+      task_id: rt.taskId,
+      date: toISODate(TODAY),
+      start_time: startClock,
+      end_time: addMinutesToClock(startClock, minutes),
+      note: "Timer",
+    });
+  },
+
+  cancelTimer: () => {
+    set({ runningTimer: null });
+    saveTimer(null);
   },
 
   addMember: (partial) => {
