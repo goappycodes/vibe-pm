@@ -37,6 +37,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { MenuItem, Popover } from "@/components/Popover";
 import { ChevronDown, Link2, Plus, Search, X } from "lucide-react";
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -523,7 +524,13 @@ function SortableCard({ task, dragging }: { task: Task; dragging: boolean }) {
   );
 }
 
-function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
+const Card = memo(function Card({
+  task,
+  overlay,
+}: {
+  task: Task;
+  overlay?: boolean;
+}) {
   const project = useStore((s) =>
     s.projects.find((p) => p.id === task.project_id)
   );
@@ -584,4 +591,4 @@ function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
       </div>
     </div>
   );
-}
+});
