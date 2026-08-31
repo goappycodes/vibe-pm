@@ -8,13 +8,14 @@ import { composeStandup, postStandupToSlack, useTodayPlan } from "@/lib/dayPlan"
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { URGENCY_META } from "@/lib/types";
-import { cn, daysFromToday, TODAY, toISODate } from "@/lib/utils";
+import { cn, daysFromToday, formatDuration, TODAY, toISODate } from "@/lib/utils";
 import { format } from "date-fns";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   CircleDot,
+  Clock,
   ListPlus,
   Loader2,
   Plus,
@@ -61,6 +62,7 @@ export default function MyDayPage() {
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
   );
+  const timeLogs = useStore((s) => s.timeLogs);
   const [showDone, setShowDone] = useState(false);
 
   const mine = useMemo(
@@ -87,6 +89,12 @@ export default function MyDayPage() {
   const overdueCount = grouped.overdue.length;
   const todayCount = grouped.today.length;
   const inProgress = active.filter((t) => t.status === "in_progress").length;
+  const minutesToday = useMemo(() => {
+    const day = toISODate(TODAY);
+    return timeLogs
+      .filter((l) => l.user_id === currentUserId && l.date === day)
+      .reduce((sum, l) => sum + l.minutes, 0);
+  }, [timeLogs, currentUserId]);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -113,7 +121,7 @@ export default function MyDayPage() {
           </p>
         </div>
 
-        <div className="mb-6 grid grid-cols-3 gap-3">
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatTile
             icon={<AlertTriangle className="h-4 w-4" />}
             label="Overdue"
@@ -131,6 +139,12 @@ export default function MyDayPage() {
             label="In progress"
             value={inProgress}
             tone="indigo"
+          />
+          <StatTile
+            icon={<Clock className="h-4 w-4" />}
+            label="Logged today"
+            value={minutesToday > 0 ? formatDuration(minutesToday) : "0m"}
+            tone="emerald"
           />
         </div>
 
@@ -469,13 +483,14 @@ function StatTile({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
-  tone: "rose" | "amber" | "indigo";
+  value: number | string;
+  tone: "rose" | "amber" | "indigo" | "emerald";
 }) {
   const tones = {
     rose: "text-rose-600 bg-rose-50 dark:bg-rose-500/10",
     amber: "text-amber-600 bg-amber-50 dark:bg-amber-500/10",
     indigo: "text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10",
+    emerald: "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10",
   }[tone];
   return (
     <div className="card flex items-center gap-3 p-3.5">
