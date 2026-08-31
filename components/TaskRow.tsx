@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ import {
 } from "./Badges";
 import { StatusPicker } from "./Pickers";
 
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   showProject = true,
 }: {
@@ -26,6 +27,7 @@ export function TaskRow({
   const assignee = useStore((s) =>
     s.members.find((m) => m.id === task.assignee_id)
   );
+  const timing = useStore((s) => s.runningTimer?.taskId === task.id);
 
   const done = task.status === "done";
 
@@ -35,6 +37,12 @@ export function TaskRow({
         value={task.status}
         onChange={(s) => updateTask(task.id, { status: s })}
       />
+      {timing && (
+        <span
+          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+          title="Timer running"
+        />
+      )}
 
       <button
         onClick={() => openDetail(task.id)}
@@ -79,4 +87,4 @@ export function TaskRow({
       <Avatar member={assignee} size="sm" />
     </div>
   );
-}
+});

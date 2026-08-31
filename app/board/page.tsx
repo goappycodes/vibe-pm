@@ -533,6 +533,7 @@ function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
   const depCount = useStore(
     (s) => s.dependencies.filter((d) => d.task_id === task.id).length
   );
+  const timing = useStore((s) => s.runningTimer?.taskId === task.id);
 
   return (
     <div
@@ -542,7 +543,15 @@ function Card({ task, overlay }: { task: Task; overlay?: boolean }) {
       )}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <ProjectBadge project={project} />
+        <div className="flex min-w-0 items-center gap-1.5">
+          {timing && (
+            <span
+              className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+              title="Timer running"
+            />
+          )}
+          <ProjectBadge project={project} />
+        </div>
         <UrgencyBadge urgency={task.urgency} />
       </div>
       <p
