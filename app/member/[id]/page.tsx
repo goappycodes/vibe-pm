@@ -15,9 +15,17 @@ import {
   type Task,
   type TeamMember,
 } from "@/lib/types";
-import { cn, daysFromToday, TODAY, toISODate } from "@/lib/utils";
+import {
+  addDays,
+  cn,
+  daysFromToday,
+  formatDuration,
+  TODAY,
+  toISODate,
+} from "@/lib/utils";
 import {
   ArrowLeft,
+  Clock,
   ListChecks,
   ListPlus,
   Plus,
@@ -60,6 +68,7 @@ export default function MemberPage() {
   );
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
+  const timeLogs = useStore((s) => s.timeLogs);
   const isAdmin = useStore(
     (s) => s.members.find((m) => m.id === s.currentUserId)?.role === "admin"
   );
@@ -76,6 +85,14 @@ export default function MemberPage() {
     const d = daysFromToday(t.due_date);
     return d !== null && d < 0;
   }).length;
+
+  // Time logged by this member in the last 7 days — recent effort for leads.
+  const logged7d = useMemo(() => {
+    const since = toISODate(addDays(TODAY, -6));
+    return timeLogs
+      .filter((l) => l.user_id === id && l.date >= since)
+      .reduce((sum, l) => sum + l.minutes, 0);
+  }, [timeLogs, id]);
 
   // workload by status (open only)
   const byStatus = STATUSES.filter((s) => s !== "done").map((s) => {
@@ -178,7 +195,7 @@ export default function MemberPage() {
         </div>
 
         {/* stats */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Stat icon={<ListChecks className="h-4 w-4" />} label="Open tasks" value={open.length} />
           <Stat icon={<Target className="h-4 w-4" />} label="Story points" value={openPoints} />
           <Stat
@@ -188,6 +205,11 @@ export default function MemberPage() {
             tone={overdue > 0 ? "rose" : undefined}
           />
           <Stat icon={<ListChecks className="h-4 w-4" />} label="Completed" value={done.length} />
+          <Stat
+            icon={<Clock className="h-4 w-4" />}
+            label="Logged 7d"
+            value={logged7d > 0 ? formatDuration(logged7d) : "0m"}
+          />
         </div>
 
         {/* admin controls: add tasks + plan the day for this member */}
@@ -443,7 +465,7 @@ function Stat({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | string;
   tone?: "rose";
 }) {
   return (
