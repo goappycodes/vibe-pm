@@ -28,6 +28,7 @@ const HELP: { keys: string[]; label: string }[] = [
   { keys: ["g", "m"], label: "Go to Team" },
   { keys: ["g", "v"], label: "Go to Velocity" },
   { keys: ["c"], label: "Create a new task" },
+  { keys: ["t"], label: "Start / stop timer (on the open task)" },
   { keys: ["/"], label: "Search (command palette)" },
   { keys: ["⌘", "K"], label: "Command palette" },
   { keys: ["?"], label: "Toggle this help" },
@@ -91,6 +92,19 @@ export function KeyboardShortcuts() {
         e.preventDefault();
         const id = addTask({ title: "Untitled task" });
         openDetail(id);
+        return;
+      }
+
+      if (e.key === "t") {
+        // Toggle the timer: stop the running one, else start on the open task.
+        const st = useStore.getState();
+        if (st.runningTimer) {
+          e.preventDefault();
+          st.stopTimer();
+        } else if (st.detailTaskId) {
+          e.preventDefault();
+          st.startTimer(st.detailTaskId);
+        }
         return;
       }
 
