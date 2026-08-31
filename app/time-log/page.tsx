@@ -22,6 +22,7 @@ import {
   Clock3,
   Download,
   Pencil,
+  Play,
   Plus,
   Timer,
   Trash2,
@@ -448,6 +449,8 @@ function LogBar() {
   const currentUserId = useStore((s) => s.currentUserId);
   const timeLogs = useStore((s) => s.timeLogs);
   const addTimeLog = useStore((s) => s.addTimeLog);
+  const startTimer = useStore((s) => s.startTimer);
+  const runningTimer = useStore((s) => s.runningTimer);
   const [error, setError] = useState<string | null>(null);
 
   const form = useDraft({
@@ -496,6 +499,21 @@ function LogBar() {
         }}
       >
         <DraftFields {...form} />
+        <button
+          onClick={() => draft.taskId && startTimer(draft.taskId)}
+          disabled={!draft.taskId || !!runningTimer}
+          className="btn-outline gap-1.5 disabled:opacity-40"
+          title={
+            runningTimer
+              ? "A timer is already running"
+              : !draft.taskId
+                ? "Pick a task to start a timer"
+                : "Start a live timer on this task"
+          }
+        >
+          <Play className="h-4 w-4" />
+          Start timer
+        </button>
         <button onClick={submit} className="btn-primary gap-1.5">
           <Plus className="h-4 w-4" />
           Add
