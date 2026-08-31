@@ -9,10 +9,11 @@ import {
   STATUS_META,
   type Task,
 } from "@/lib/types";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatDuration } from "@/lib/utils";
 import {
   ArrowLeft,
   CheckCircle2,
+  Clock,
   Github,
   Hash,
   ListChecks,
@@ -40,6 +41,7 @@ export default function ProjectPage() {
   const project = useStore((s) => s.projects.find((p) => p.id === id));
   const tasks = useStore((s) => s.tasks);
   const members = useStore((s) => s.members);
+  const timeLogs = useStore((s) => s.timeLogs);
   const client = useStore((s) =>
     s.clients.find((c) => c.id === project?.client_id)
   );
@@ -50,6 +52,14 @@ export default function ProjectPage() {
   const projTasks = useMemo(
     () => tasks.filter((t) => t.project_id === id),
     [tasks, id]
+  );
+
+  const loggedMinutes = useMemo(
+    () =>
+      timeLogs
+        .filter((l) => l.project_id === id)
+        .reduce((sum, l) => sum + l.minutes, 0),
+    [timeLogs, id]
   );
 
   const open = projTasks.filter((t) => t.status !== "done");
@@ -146,11 +156,16 @@ export default function ProjectPage() {
         </div>
 
         {/* stats */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Stat icon={<ListChecks className="h-4 w-4" />} label="Open tasks" value={open.length} />
           <Stat icon={<Target className="h-4 w-4" />} label="Open points" value={sumPts(open)} />
           <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Done tasks" value={done.length} />
           <Stat icon={<Users2 className="h-4 w-4" />} label="Contributors" value={team.length} />
+          <Stat
+            icon={<Clock className="h-4 w-4" />}
+            label="Logged"
+            value={loggedMinutes > 0 ? formatDuration(loggedMinutes) : "0m"}
+          />
         </div>
 
         {/* progress */}
@@ -309,7 +324,7 @@ function Stat({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | string;
 }) {
   return (
     <div className="card flex items-center gap-3 p-3.5">
