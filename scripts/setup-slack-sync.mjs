@@ -147,7 +147,8 @@ begin
   v_body := coalesce(NEW.body, '');
   if length(v_body) > 280 then v_body := left(v_body, 277) || '…'; end if;
   v_text := ':speech_balloon: *' || coalesce(v_author, 'Someone') ||
-    '* commented on *' || coalesce(v_title, 'a task') || '*' ||
+    '* commented on <https://vibe-pm-six.vercel.app/board?task=' || NEW.task_id ||
+    '|' || coalesce(v_title, 'a task') || '>' ||
     E'\n>' || replace(v_body, E'\n', E'\n>');
   perform private.slack_post(v_channel, v_text);
   return NEW;

@@ -23,7 +23,7 @@ app, Slack, or a script — with no app server, Vercel, or webhook involved.
   - INSERT → `:new: *New task* — *<title>* · <assignee> · due <date> · <status> · <link|open>`
   - UPDATE → `:pencil2: *<title>* — status X → *Y*, assignee → … · <link|open>`
   - New-task and change posts include a clickable deep link into the exact task.
-  - COMMENT → `:speech_balloon: *<author>* commented on *<title>* > <body>`
+  - COMMENT → `:speech_balloon: *<author>* commented on <link|title> > <body>`
   - DELETE → `:wastebasket: *Task removed* — <title>`
 - **Turn off:** `drop trigger trg_slack_tasks on tasks;` and
   `drop trigger trg_slack_comments on comments;`
