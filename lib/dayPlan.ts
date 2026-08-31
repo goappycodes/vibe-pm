@@ -13,7 +13,7 @@ const DEFAULT_MIN_DAILY_POINTS = 3;
  * Day), how much of it is done, and whether they've picked "enough" (in
  * story points) to unlock posting a daily standup update.
  */
-export function useTodayPlan() {
+export function useTodayPlan(userId?: string) {
   const tasks = useStore((s) => s.tasks);
   const currentUserId = useStore((s) => s.currentUserId);
   const daySelections = useStore((s) => s.daySelections);
@@ -21,16 +21,17 @@ export function useTodayPlan() {
     useStore((s) => s.settings.general.min_daily_points) ??
     DEFAULT_MIN_DAILY_POINTS;
 
+  const uid = userId ?? currentUserId;
   const today = toISODate(TODAY);
 
   const planTasks = useMemo(() => {
     const ids = new Set(
       daySelections
-        .filter((d) => d.user_id === currentUserId && d.date === today)
+        .filter((d) => d.user_id === uid && d.date === today)
         .map((d) => d.task_id)
     );
     return tasks.filter((t) => ids.has(t.id));
-  }, [tasks, daySelections, currentUserId, today]);
+  }, [tasks, daySelections, uid, today]);
 
   const doneTasks = planTasks.filter((t) => t.status === "done");
   const blockedTasks = planTasks.filter((t) => t.status === "blocked");

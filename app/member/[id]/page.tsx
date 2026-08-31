@@ -1,8 +1,11 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
-import { ProjectBadge } from "@/components/Badges";
+import { PointsBadge, ProjectBadge } from "@/components/Badges";
+import { DayPlanPicker } from "@/components/DayPlanPicker";
+import { ProjectPicker, StatusPicker } from "@/components/Pickers";
 import { TaskRow } from "@/components/TaskRow";
+import { useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import {
   ROLE_META,
@@ -10,12 +13,23 @@ import {
   STATUS_META,
   URGENCY_META,
   type Task,
+  type TeamMember,
 } from "@/lib/types";
-import { cn, daysFromToday } from "@/lib/utils";
-import { ArrowLeft, ListChecks, Target, TriangleAlert } from "lucide-react";
+import { cn, daysFromToday, TODAY, toISODate } from "@/lib/utils";
+import {
+  ArrowLeft,
+  ListChecks,
+  ListPlus,
+  Plus,
+  ShieldCheck,
+  Sun,
+  Target,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type BucketKey = "overdue" | "today" | "week" | "later" | "none";
 const BUCKETS: { key: BucketKey; label: string }[] = [
@@ -46,6 +60,9 @@ export default function MemberPage() {
   );
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
+  const isAdmin = useStore(
+    (s) => s.members.find((m) => m.id === s.currentUserId)?.role === "admin"
+  );
 
   const mine = useMemo(
     () => tasks.filter((t) => t.assignee_id === id),
@@ -173,6 +190,9 @@ export default function MemberPage() {
           <Stat icon={<ListChecks className="h-4 w-4" />} label="Completed" value={done.length} />
         </div>
 
+        {/* admin controls: add tasks + plan the day for this member */}
+        {isAdmin && <AdminMemberActions member={member} />}
+
         {/* workload */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="card p-4">
@@ -282,6 +302,135 @@ export default function MemberPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Admin-only panel on a member's page: add tasks to them and build their day. */
+function AdminMemberActions({ member }: { member: TeamMember }) {
+  const addTask = useStore((s) => s.addTask);
+  const projects = useStore((s) => s.projects);
+  const updateTask = useStore((s) => s.updateTask);
+  const removeFromDayPlan = useStore((s) => s.removeFromDayPlan);
+  const { planTasks, doneTasks, totalPoints } = useTodayPlan(member.id);
+  const [title, setTitle] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const pid = projectId || projects[0]?.id || "";
+  const first = member.name.split(" ")[0];
+
+  const submit = () => {
+    const t = title.trim();
+    if (!t || !pid) return;
+    addTask({
+      title: t,
+      assignee_id: member.id,
+      due_date: toISODate(TODAY),
+      status: "todo",
+      project_id: pid,
+    });
+    setTitle("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="card mt-6 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <ShieldCheck className="h-4 w-4 text-violet-500" />
+        <h3 className="text-sm font-semibold text-fg">
+          Admin · manage {first}
+        </h3>
+      </div>
+
+      {/* quick add, assigned to this member */}
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 transition-colors focus-within:border-accent">
+        <Plus className="h-4 w-4 shrink-0 text-faint" />
+        <input
+          ref={inputRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          placeholder={`Add a task for ${first}…`}
+          className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
+        />
+        <ProjectPicker value={pid} onChange={setProjectId} />
+        <button
+          onClick={submit}
+          disabled={!title.trim()}
+          className="btn-primary shrink-0 py-1 text-xs disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+
+      {/* today's plan for this member */}
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-fg">
+            <Sun className="h-4 w-4 shrink-0 text-amber-500" />
+            <span className="truncate">{first}&apos;s plan today</span>
+            {planTasks.length > 0 && (
+              <span className="shrink-0 text-xs font-normal text-faint">
+                {doneTasks.length}/{planTasks.length} done · {totalPoints} pt
+                {totalPoints === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => setPickerOpen(true)}
+            className="btn-outline shrink-0 gap-1.5 text-xs"
+          >
+            <ListPlus className="h-3.5 w-3.5" />
+            {planTasks.length ? "Edit plan" : "Plan the day"}
+          </button>
+        </div>
+
+        {planTasks.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-4 text-center text-xs text-faint">
+            Nothing planned for today yet.
+          </p>
+        ) : (
+          <div className="space-y-0.5">
+            {planTasks.map((t) => (
+              <div
+                key={t.id}
+                className="group flex items-center gap-3 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-surface-2"
+              >
+                <StatusPicker
+                  value={t.status}
+                  onChange={(s) => updateTask(t.id, { status: s })}
+                />
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 truncate text-sm text-fg",
+                    t.status === "done" && "text-faint line-through"
+                  )}
+                >
+                  {t.title}
+                </span>
+                {t.story_points != null && (
+                  <PointsBadge points={t.story_points} />
+                )}
+                <button
+                  onClick={() => removeFromDayPlan(t.id, member.id)}
+                  className="shrink-0 text-faint opacity-0 transition-opacity hover:text-rose-600 group-hover:opacity-100"
+                  title="Remove from plan"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {pickerOpen && (
+        <DayPlanPicker userId={member.id} onClose={() => setPickerOpen(false)} />
+      )}
     </div>
   );
 }

@@ -1,14 +1,24 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
+import { MenuItem, Popover } from "@/components/Popover";
 import { postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
-import type { UpdateSource } from "@/lib/types";
+import { STATUS_META, type Task, type UpdateSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { Loader2, Plus, Search, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+
+const STATUS_RANK: Record<string, number> = {
+  in_progress: 0,
+  blocked: 1,
+  in_review: 2,
+  todo: 3,
+  backlog: 4,
+  done: 5,
+};
 
 const SOURCE_META: Record<
   UpdateSource,
@@ -34,6 +44,7 @@ const SOURCE_META: Record<
 export default function UpdatesPage() {
   const updates = useStore((s) => s.updates);
   const members = useStore((s) => s.members);
+  const tasks = useStore((s) => s.tasks);
   const currentUserId = useStore((s) => s.currentUserId);
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
@@ -52,6 +63,32 @@ export default function UpdatesPage() {
   const hasText =
     completed.trim() || inProgress.trim() || blockers.trim() ? true : false;
   const canPost = hasText && plan.enough;
+
+  // The current user's tasks, most actionable first — offered in the task
+  // pickers so an update can be assembled by selecting instead of typing.
+  const myTasks = useMemo(
+    () =>
+      tasks
+        .filter((t) => t.assignee_id === currentUserId)
+        .sort(
+          (a, b) =>
+            (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) ||
+            a.title.localeCompare(b.title)
+        ),
+    [tasks, currentUserId]
+  );
+
+  const appendTask = (
+    setter: React.Dispatch<React.SetStateAction<string>>,
+    title: string
+  ) => {
+    const line = `• ${title}`;
+    setter((v) => {
+      const trimmed = v.replace(/\s+$/, "");
+      if (trimmed.split("\n").some((l) => l.trim() === line)) return v;
+      return trimmed ? `${trimmed}\n${line}` : line;
+    });
+  };
 
   const generateFromPlan = () => {
     const listOf = (items: typeof plan.planTasks) =>
@@ -145,18 +182,36 @@ export default function UpdatesPage() {
               value={completed}
               onChange={setCompleted}
               placeholder="What did you finish?"
+              action={
+                <TaskPickerButton
+                  tasks={myTasks}
+                  onPick={(t) => appendTask(setCompleted, t.title)}
+                />
+              }
             />
             <Field
               label="🔨 In progress"
               value={inProgress}
               onChange={setInProgress}
               placeholder="What are you working on?"
+              action={
+                <TaskPickerButton
+                  tasks={myTasks}
+                  onPick={(t) => appendTask(setInProgress, t.title)}
+                />
+              }
             />
             <Field
               label="🚧 Blockers"
               value={blockers}
               onChange={setBlockers}
               placeholder="Anything blocking you?"
+              action={
+                <TaskPickerButton
+                  tasks={myTasks}
+                  onPick={(t) => appendTask(setBlockers, t.title)}
+                />
+              }
             />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3">
@@ -271,15 +326,20 @@ function Field({
   value,
   onChange,
   placeholder,
+  action,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div>
-      <div className="mb-1 text-xs font-medium text-muted">{label}</div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="text-xs font-medium text-muted">{label}</div>
+        {action}
+      </div>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -288,5 +348,81 @@ function Field({
         className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none placeholder:text-faint focus:border-accent focus:ring-2 focus:ring-accent/20"
       />
     </div>
+  );
+}
+
+/** Popover that lists the user's tasks so an update line can be picked, not typed. */
+function TaskPickerButton({
+  tasks,
+  onPick,
+}: {
+  tasks: Task[];
+  onPick: (t: Task) => void;
+}) {
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const filtered = query
+    ? tasks.filter((t) => t.title.toLowerCase().includes(query))
+    : tasks;
+
+  return (
+    <Popover
+      width={300}
+      align="end"
+      trigger={({ toggle }) => (
+        <button
+          type="button"
+          onClick={toggle}
+          className="btn-ghost gap-1 px-1.5 py-0.5 text-[11px] text-muted"
+        >
+          <Plus className="h-3 w-3" />
+          Add task
+        </button>
+      )}
+    >
+      {(close) => (
+        <div>
+          <div className="flex items-center gap-2 border-b border-border px-2.5 py-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-faint" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search your tasks…"
+              className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs text-faint">
+                No tasks found.
+              </div>
+            )}
+            {filtered.map((t) => (
+              <MenuItem
+                key={t.id}
+                onClick={() => {
+                  onPick(t);
+                  close();
+                }}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    STATUS_META[t.status].dot
+                  )}
+                />
+                <span className="min-w-0 flex-1 truncate">{t.title}</span>
+                {t.story_points != null && (
+                  <span className="shrink-0 text-[11px] tabular-nums text-faint">
+                    {t.story_points}
+                  </span>
+                )}
+              </MenuItem>
+            ))}
+          </div>
+        </div>
+      )}
+    </Popover>
   );
 }

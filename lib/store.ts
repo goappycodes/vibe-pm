@@ -94,9 +94,9 @@ interface State {
   addUpdate: (rawText: string, source?: UpdateSource) => void;
   removeUpdate: (id: string) => void;
 
-  todayPlanTaskIds: () => string[];
-  addToDayPlan: (taskId: string) => void;
-  removeFromDayPlan: (taskId: string) => void;
+  todayPlanTaskIds: (userId?: string) => string[];
+  addToDayPlan: (taskId: string, userId?: string) => void;
+  removeFromDayPlan: (taskId: string, userId?: string) => void;
 
   addMember: (partial?: Partial<TeamMember>) => string;
   updateMember: (id: string, patch: Partial<TeamMember>) => void;
@@ -609,22 +609,24 @@ export const useStore = create<State>((set, get) => ({
     deleteRow("updates", { id });
   },
 
-  todayPlanTaskIds: () => {
+  todayPlanTaskIds: (userId) => {
     const state = get();
+    const uid = userId ?? state.currentUserId;
     const date = toISODate(TODAY);
     return state.daySelections
-      .filter((d) => d.user_id === state.currentUserId && d.date === date)
+      .filter((d) => d.user_id === uid && d.date === date)
       .map((d) => d.task_id);
   },
 
-  addToDayPlan: (taskId) => {
+  addToDayPlan: (taskId, userId) => {
     const state = get();
+    const uid = userId ?? state.currentUserId;
     const date = toISODate(TODAY);
-    const id = `ds_${state.currentUserId}_${date}_${taskId}`;
+    const id = `ds_${uid}_${date}_${taskId}`;
     if (state.daySelections.some((d) => d.id === id)) return;
     const row: DaySelection = {
       id,
-      user_id: state.currentUserId,
+      user_id: uid,
       date,
       task_id: taskId,
       created_at: nowISO(),
@@ -633,10 +635,11 @@ export const useStore = create<State>((set, get) => ({
     upsertRows("day_selections", [row]);
   },
 
-  removeFromDayPlan: (taskId) => {
+  removeFromDayPlan: (taskId, userId) => {
     const state = get();
+    const uid = userId ?? state.currentUserId;
     const date = toISODate(TODAY);
-    const id = `ds_${state.currentUserId}_${date}_${taskId}`;
+    const id = `ds_${uid}_${date}_${taskId}`;
     set({
       daySelections: state.daySelections.filter((d) => d.id !== id),
     });

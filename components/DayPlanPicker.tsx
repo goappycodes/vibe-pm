@@ -10,19 +10,33 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { PointsBadge, ProjectBadge } from "./Badges";
 
-/** Modal for picking which existing tasks make up today's plan. */
-export function DayPlanPicker({ onClose }: { onClose: () => void }) {
+/**
+ * Modal for picking which existing tasks make up a day plan. Defaults to the
+ * current user; admins can pass `userId` to build another member's plan.
+ */
+export function DayPlanPicker({
+  onClose,
+  userId,
+}: {
+  onClose: () => void;
+  userId?: string;
+}) {
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
   const currentUserId = useStore((s) => s.currentUserId);
   const addToDayPlan = useStore((s) => s.addToDayPlan);
   const removeFromDayPlan = useStore((s) => s.removeFromDayPlan);
-  const { planTasks } = useTodayPlan();
+  const targetUserId = userId ?? currentUserId;
+  const isSelf = targetUserId === currentUserId;
+  const member = useStore((s) => s.members.find((m) => m.id === targetUserId));
+  const { planTasks } = useTodayPlan(targetUserId);
 
   const [query, setQuery] = useState("");
-  const [onlyMine, setOnlyMine] = useState(true);
+  const [onlyTheirs, setOnlyTheirs] = useState(true);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const firstName = member?.name.split(" ")[0] ?? "them";
 
   const selectedIds = useMemo(
     () => new Set(planTasks.map((t) => t.id)),
@@ -33,14 +47,14 @@ export function DayPlanPicker({ onClose }: { onClose: () => void }) {
     const q = query.trim().toLowerCase();
     return tasks
       .filter((t) => t.status !== "done" || selectedIds.has(t.id))
-      .filter((t) => !onlyMine || t.assignee_id === currentUserId)
+      .filter((t) => !onlyTheirs || t.assignee_id === targetUserId)
       .filter((t) => !q || t.title.toLowerCase().includes(q))
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [tasks, onlyMine, currentUserId, query, selectedIds]);
+  }, [tasks, onlyTheirs, targetUserId, query, selectedIds]);
 
   const toggle = (t: Task) => {
-    if (selectedIds.has(t.id)) removeFromDayPlan(t.id);
-    else addToDayPlan(t.id);
+    if (selectedIds.has(t.id)) removeFromDayPlan(t.id, targetUserId);
+    else addToDayPlan(t.id, targetUserId);
   };
 
   useEffect(() => {
@@ -65,7 +79,7 @@ export function DayPlanPicker({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
           <div>
             <div className="text-sm font-semibold text-fg">
-              Plan your day
+              {isSelf ? "Plan your day" : `Plan ${firstName}'s day`}
             </div>
             <div className="text-xs text-faint">
               {selectedIds.size} task{selectedIds.size === 1 ? "" : "s"}{" "}
@@ -91,15 +105,19 @@ export function DayPlanPicker({ onClose }: { onClose: () => void }) {
             className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-faint"
           />
           <button
-            onClick={() => setOnlyMine((v) => !v)}
+            onClick={() => setOnlyTheirs((v) => !v)}
             className={cn(
               "chip shrink-0",
-              onlyMine
+              onlyTheirs
                 ? "border-transparent bg-accent-soft text-accent"
                 : "border-border text-muted"
             )}
           >
-            {onlyMine ? "Assigned to me" : "Everyone"}
+            {onlyTheirs
+              ? isSelf
+                ? "Assigned to me"
+                : `Assigned to ${firstName}`
+              : "Everyone"}
           </button>
         </div>
 
