@@ -110,10 +110,8 @@ export function CommandPalette() {
         label: "Create project",
         icon: <Folder className="h-4 w-4" />,
         group: "Actions",
-        run: () => {
-          const id = addProject();
-          router.push(`/project/${id}`);
-        },
+        // Opens the details dialog on the projects page.
+        run: () => router.push("/projects?new=1"),
       },
       {
         id: "new-member",

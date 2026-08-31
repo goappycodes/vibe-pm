@@ -793,7 +793,8 @@ export const useStore = create<State>((set, get) => ({
       slack_channel_id: partial?.slack_channel_id ?? null,
       target_date: partial?.target_date ?? null,
     };
-    set({ projects: [...state.projects, project] });
+    // Newest first — appended, it lands off-screen below the existing list.
+    set({ projects: [project, ...state.projects] });
     upsertRows("projects", [project]);
     return id;
   },

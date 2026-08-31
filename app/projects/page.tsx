@@ -1,29 +1,22 @@
 "use client";
 
-import { Avatar } from "@/components/Avatar";
-import { MenuItem, Popover } from "@/components/Popover";
+import { NewProjectDialog } from "@/components/NewProjectDialog";
 import {
   AssigneePicker,
   ClientPicker,
   DatePicker,
   SlackChannelPicker,
 } from "@/components/Pickers";
+import {
+  ProjectColorPicker,
+  ProjectStatusPicker,
+} from "@/components/ProjectPickers";
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS, type Project } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-import { ArrowUpRight, Check, Folder, Lock, Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Folder, Lock, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-
-const PROJECT_STATUS: {
-  v: Project["status"];
-  label: string;
-  dot: string;
-  text: string;
-}[] = [
-  { v: "active", label: "Active", dot: "bg-emerald-500", text: "text-emerald-600" },
-  { v: "paused", label: "Paused", dot: "bg-amber-500", text: "text-amber-600" },
-  { v: "done", label: "Done", dot: "bg-slate-400", text: "text-slate-500" },
-];
+import { useEffect, useState } from "react";
 
 export default function ProjectsPage() {
   const projects = useStore((s) => s.projects);
@@ -31,8 +24,17 @@ export default function ProjectsPage() {
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
   );
-  const addProject = useStore((s) => s.addProject);
   const isAdmin = currentUser?.role === "admin";
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // The command palette's "Create project" lands here with ?new=1.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new")) {
+      setDialogOpen(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -43,7 +45,10 @@ export default function ProjectsPage() {
             {projects.length} projects
           </div>
           {isAdmin ? (
-            <button onClick={() => addProject()} className="btn-primary gap-1.5">
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="btn-primary gap-1.5"
+            >
               <Plus className="h-4 w-4" />
               New project
             </button>
@@ -73,6 +78,11 @@ export default function ProjectsPage() {
           })}
         </div>
       </div>
+
+      <NewProjectDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+      />
     </div>
   );
 }
@@ -96,7 +106,7 @@ function ProjectCard({
     <div className="card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <ColorPicker
+          <ProjectColorPicker
             value={project.color}
             disabled={!editable}
             onChange={(color) => updateProject(project.id, { color })}
@@ -186,110 +196,5 @@ function Field({
       </div>
       {children}
     </div>
-  );
-}
-
-function ProjectStatusPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: Project["status"];
-  onChange: (s: Project["status"]) => void;
-  disabled?: boolean;
-}) {
-  const meta = PROJECT_STATUS.find((s) => s.v === value) ?? PROJECT_STATUS[0];
-  if (disabled) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm">
-        <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
-        <span className={meta.text}>{meta.label}</span>
-      </span>
-    );
-  }
-  return (
-    <Popover
-      width={150}
-      align="end"
-      trigger={({ toggle }) => (
-        <button
-          onClick={toggle}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors hover:bg-surface-2"
-        >
-          <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
-          <span className={meta.text}>{meta.label}</span>
-        </button>
-      )}
-    >
-      {(close) => (
-        <div className="py-1">
-          {PROJECT_STATUS.map((s) => (
-            <MenuItem
-              key={s.v}
-              active={s.v === value}
-              onClick={() => {
-                onChange(s.v);
-                close();
-              }}
-            >
-              <span className={cn("h-2 w-2 rounded-full", s.dot)} />
-              <span className={cn("flex-1", s.text)}>{s.label}</span>
-              {s.v === value && <Check className="h-3.5 w-3.5 text-accent" />}
-            </MenuItem>
-          ))}
-        </div>
-      )}
-    </Popover>
-  );
-}
-
-function ColorPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (c: string) => void;
-  disabled?: boolean;
-}) {
-  const c = PROJECT_COLORS[value] ?? PROJECT_COLORS.indigo;
-  if (disabled) {
-    return <span className={cn("h-3 w-3 rounded-full", c.dot)} />;
-  }
-  return (
-    <Popover
-      width={132}
-      trigger={({ toggle }) => (
-        <button
-          onClick={toggle}
-          className={cn(
-            "h-3.5 w-3.5 rounded-full ring-2 ring-transparent transition-all hover:ring-border",
-            c.dot
-          )}
-          title="Project color"
-        />
-      )}
-    >
-      {(close) => (
-        <div className="grid grid-cols-4 gap-1.5 p-2">
-          {Object.entries(PROJECT_COLORS).map(([key, col]) => (
-            <button
-              key={key}
-              onClick={() => {
-                onChange(key);
-                close();
-              }}
-              className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full",
-                col.dot
-              )}
-              title={key}
-            >
-              {key === value && <Check className="h-3.5 w-3.5 text-white" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </Popover>
   );
 }

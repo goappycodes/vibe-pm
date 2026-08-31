@@ -1,4 +1,5 @@
 "use client";
+import { EditableText } from "@/components/EditableText";
 
 import { ProjectBadge } from "@/components/Badges";
 import { MenuItem, Popover } from "@/components/Popover";
@@ -122,11 +123,11 @@ function ClientCard({
             <User className="h-3 w-3" /> Contact
           </div>
           {editable ? (
-            <input
+            <EditableText
               value={client.contact_name}
               placeholder="Contact name"
-              onChange={(e) =>
-                updateClient(client.id, { contact_name: e.target.value })
+              onCommit={(contact_name) =>
+                updateClient(client.id, { contact_name })
               }
               className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-fg outline-none hover:border-border focus:border-accent focus:bg-surface-2"
             />
@@ -141,11 +142,12 @@ function ClientCard({
             <Mail className="h-3 w-3" /> Email
           </div>
           {editable ? (
-            <input
+            <EditableText
+              type="email"
               value={client.contact_email}
               placeholder="name@client.com"
-              onChange={(e) =>
-                updateClient(client.id, { contact_email: e.target.value })
+              onCommit={(contact_email) =>
+                updateClient(client.id, { contact_email })
               }
               className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-muted outline-none hover:border-border focus:border-accent focus:bg-surface-2"
             />

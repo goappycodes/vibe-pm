@@ -1,4 +1,5 @@
 "use client";
+import { EditableText } from "@/components/EditableText";
 
 import { MenuItem, Popover } from "@/components/Popover";
 import { useStore } from "@/lib/store";
@@ -151,9 +152,9 @@ export default function SettingsPage() {
 
           <Row label="Organization name">
             {isAdmin ? (
-              <input
+              <EditableText
                 value={settings.general.org_name}
-                onChange={(e) => setGeneral({ org_name: e.target.value })}
+                onCommit={(org_name) => setGeneral({ org_name })}
                 className="input max-w-xs"
               />
             ) : (
@@ -219,9 +220,9 @@ export default function SettingsPage() {
 
           <Row label="Timezone">
             {isAdmin ? (
-              <input
+              <EditableText
                 value={settings.general.timezone}
-                onChange={(e) => setGeneral({ timezone: e.target.value })}
+                onCommit={(timezone) => setGeneral({ timezone })}
                 className="input max-w-xs"
               />
             ) : (
@@ -231,14 +232,11 @@ export default function SettingsPage() {
 
           <Row label="Daily story-point goal" last>
             {isAdmin ? (
-              <input
+              <EditableText
                 type="number"
-                min={0}
-                value={settings.general.min_daily_points ?? 3}
-                onChange={(e) =>
-                  setGeneral({
-                    min_daily_points: Math.max(0, Number(e.target.value) || 0),
-                  })
+                value={String(settings.general.min_daily_points ?? 3)}
+                onCommit={(v) =>
+                  setGeneral({ min_daily_points: Math.max(0, Number(v) || 0) })
                 }
                 className="input w-20 text-right"
               />

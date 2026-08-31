@@ -1,4 +1,5 @@
 "use client";
+import { EditableText } from "./EditableText";
 
 import { useStore } from "@/lib/store";
 import { STATUS_META, type UpdateSource } from "@/lib/types";
@@ -153,10 +154,12 @@ export function TaskDetailDrawer() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-4">
-            <textarea
-              value={task.title}
-              onChange={(e) => updateTask(task.id, { title: e.target.value })}
+            <EditableText
+              as="textarea"
               rows={2}
+              enterCommits
+              value={task.title}
+              onCommit={(title) => updateTask(task.id, { title })}
               className="w-full resize-none bg-transparent text-lg font-semibold leading-snug text-fg outline-none placeholder:text-faint"
               placeholder="Task title"
             />
@@ -214,10 +217,11 @@ export function TaskDetailDrawer() {
             <div className="mb-1.5 text-xs font-medium text-faint">
               Description
             </div>
-            <textarea
+            <EditableText
+              as="textarea"
               value={task.description}
-              onChange={(e) =>
-                updateTask(task.id, { description: e.target.value })
+              onCommit={(description) =>
+                updateTask(task.id, { description })
               }
               rows={3}
               placeholder="Add a description…"

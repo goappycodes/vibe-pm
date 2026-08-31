@@ -1,4 +1,5 @@
 "use client";
+import { EditableText } from "@/components/EditableText";
 
 import { Avatar } from "@/components/Avatar";
 import { MenuItem, Popover } from "@/components/Popover";
@@ -180,10 +181,11 @@ function MemberRow({
 
       {/* email */}
       {editable ? (
-        <input
+        <EditableText
+          type="email"
           value={member.email}
           placeholder="name@appycodes.com"
-          onChange={(e) => updateMember(member.id, { email: e.target.value })}
+          onCommit={(email) => updateMember(member.id, { email })}
           className="w-full truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-muted outline-none hover:border-border focus:border-accent focus:bg-surface-2"
         />
       ) : (

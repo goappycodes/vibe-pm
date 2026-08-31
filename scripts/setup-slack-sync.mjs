@@ -84,7 +84,7 @@ create or replace function private.notify_slack_tasks()
 returns trigger language plpgsql security definer
 set search_path = public, private as $fn$
 declare
-  v_channel text; v_text text; v_assignee text; v_changes text[];
+  v_channel text; v_text text; v_assignee text; v_changes text[]; v_heading text;
   st jsonb := '{"backlog":"Backlog","todo":"To do","in_progress":"In progress","blocked":"Blocked","in_review":"In review","done":"Done"}'::jsonb;
 begin
   v_channel := private.slack_channel_for(coalesce(NEW.project_id, OLD.project_id));
@@ -113,12 +113,14 @@ begin
     end if;
     if NEW.title is distinct from OLD.title then
       v_changes := v_changes || ('renamed to *' || NEW.title || '*');
+      v_heading := OLD.title;   -- so it reads: *old* — renamed to *new*
     end if;
     if NEW.urgency is distinct from OLD.urgency then
       v_changes := v_changes || ('urgency → ' || NEW.urgency);
     end if;
     if array_length(v_changes, 1) is null then return NEW; end if;
-    v_text := ':pencil2: *' || NEW.title || '* — ' || array_to_string(v_changes, ', ');
+    v_text := ':pencil2: *' || coalesce(v_heading, NEW.title) || '* — ' ||
+              array_to_string(v_changes, ', ');
   end if;
 
   perform private.slack_post(v_channel, v_text);
