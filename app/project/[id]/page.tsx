@@ -13,14 +13,17 @@ import { cn, formatDate } from "@/lib/utils";
 import {
   ArrowLeft,
   CheckCircle2,
+  Github,
   Hash,
   ListChecks,
+  Pencil,
   Target,
   Users2,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import type { Project } from "@/lib/types";
 
 const sumPts = (list: Task[]) =>
   list.reduce((a, t) => a + (t.story_points ?? 0), 0);
@@ -136,6 +139,7 @@ export default function ProjectPage() {
               {project.slack_channel_id}
             </span>
           )}
+          <RepoLink project={project} />
           {project.target_date && (
             <span>Target {formatDate(project.target_date)}</span>
           )}
@@ -217,6 +221,84 @@ export default function ProjectPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Show the linked git repo (org/repo) as a link; click the pencil to set it. */
+function RepoLink({ project }: { project: Project }) {
+  const updateProject = useStore((s) => s.updateProject);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(project.git_repo_url ?? "");
+  const url = project.git_repo_url;
+  const label = url
+    ? url.replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\/$/, "")
+    : null;
+
+  const save = () => {
+    const v = draft.trim();
+    updateProject(project.id, { git_repo_url: v || null });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            save();
+          } else if (e.key === "Escape") {
+            setDraft(url ?? "");
+            setEditing(false);
+          }
+        }}
+        placeholder="https://github.com/org/repo"
+        className="w-60 rounded-md border border-border bg-surface px-2 py-0.5 text-xs text-fg outline-none focus:border-accent"
+      />
+    );
+  }
+
+  if (url) {
+    return (
+      <span className="flex items-center gap-1.5">
+        <Github className="h-3.5 w-3.5 text-faint" />
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-fg hover:underline"
+        >
+          {label}
+        </a>
+        <button
+          onClick={() => {
+            setDraft(url);
+            setEditing(true);
+          }}
+          className="text-faint transition-colors hover:text-fg"
+          title="Edit repo link"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setDraft("");
+        setEditing(true);
+      }}
+      className="flex items-center gap-1 text-faint transition-colors hover:text-fg"
+    >
+      <Github className="h-3.5 w-3.5" />
+      Link repo
+    </button>
   );
 }
 

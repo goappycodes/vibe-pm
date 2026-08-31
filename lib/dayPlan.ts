@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { useMemo } from "react";
 import { useStore } from "./store";
 import type { Task } from "./types";
-import { TODAY, toISODate } from "./utils";
+import { formatDuration, TODAY, toISODate } from "./utils";
 
 const DEFAULT_MIN_DAILY_POINTS = 3;
 
@@ -68,9 +68,17 @@ export function composeStandup(opts: {
   doneTasks: Task[];
   blockedTasks: Task[];
   totalPoints: number;
+  minutesLogged?: number;
 }): string {
-  const { memberName, today, planTasks, doneTasks, blockedTasks, totalPoints } =
-    opts;
+  const {
+    memberName,
+    today,
+    planTasks,
+    doneTasks,
+    blockedTasks,
+    totalPoints,
+    minutesLogged = 0,
+  } = opts;
   const inProgress = planTasks.filter(
     (t) => t.status !== "done" && t.status !== "blocked"
   );
@@ -92,7 +100,7 @@ export function composeStandup(opts: {
     parts.push(`🔨 Planned / in progress\n${list(inProgress)}`);
   if (blockedTasks.length) parts.push(`🚧 Blockers\n${list(blockedTasks)}`);
   parts.push(
-    `📌 ${planTasks.length} task${planTasks.length === 1 ? "" : "s"} · ${totalPoints} pt${totalPoints === 1 ? "" : "s"}`
+    `📌 ${planTasks.length} task${planTasks.length === 1 ? "" : "s"} · ${totalPoints} pt${totalPoints === 1 ? "" : "s"}${minutesLogged > 0 ? ` · 🕒 ${formatDuration(minutesLogged)} logged` : ""}`
   );
   return parts.join("\n\n");
 }

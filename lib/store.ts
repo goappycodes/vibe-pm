@@ -791,6 +791,7 @@ export const useStore = create<State>((set, get) => ({
       status: partial?.status ?? "active",
       color: partial?.color ?? "indigo",
       slack_channel_id: partial?.slack_channel_id ?? null,
+      git_repo_url: partial?.git_repo_url ?? null,
       target_date: partial?.target_date ?? null,
     };
     // Newest first — appended, it lands off-screen below the existing list.

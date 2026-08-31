@@ -218,8 +218,12 @@ function TodayPlan() {
     s.members.find((m) => m.id === s.currentUserId)
   );
   const channels = useStore((s) => s.settings.slack.channels);
+  const timeLogs = useStore((s) => s.timeLogs);
   const { today, planTasks, doneTasks, blockedTasks, totalPoints, minPoints, enough, pct } =
     useTodayPlan();
+  const minutesLogged = timeLogs
+    .filter((l) => l.user_id === currentUser?.id && l.date === today)
+    .reduce((sum, l) => sum + l.minutes, 0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState<string | null>(null);
@@ -235,6 +239,7 @@ function TodayPlan() {
       doneTasks,
       blockedTasks,
       totalPoints,
+      minutesLogged,
     });
     const hint =
       channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";

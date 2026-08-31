@@ -40,6 +40,7 @@ export function NewProjectDialog({
     status: "active",
     color: "indigo",
     slack_channel_id: null,
+    git_repo_url: null,
     target_date: null,
   });
   const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
@@ -56,6 +57,7 @@ export function NewProjectDialog({
       status: "active",
       color: "indigo",
       slack_channel_id: null,
+      git_repo_url: null,
       target_date: null,
     });
     setSaving(false);
@@ -160,6 +162,19 @@ export function NewProjectDialog({
               </div>
             </Field>
           </div>
+
+          <label className="mt-4 block">
+            <FieldLabel>Git repo</FieldLabel>
+            <input
+              type="text"
+              value={draft.git_repo_url ?? ""}
+              onChange={(e) =>
+                patch({ git_repo_url: e.target.value.trim() || null })
+              }
+              placeholder="https://github.com/org/repo (optional)"
+              className="input"
+            />
+          </label>
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">

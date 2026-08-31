@@ -5,7 +5,7 @@ import { MenuItem, Popover } from "@/components/Popover";
 import { postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
 import { useStore } from "@/lib/store";
 import { STATUS_META, type Task, type UpdateSource } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import { Loader2, Plus, Search, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
@@ -52,7 +52,11 @@ export default function UpdatesPage() {
   const addUpdate = useStore((s) => s.addUpdate);
   const removeUpdate = useStore((s) => s.removeUpdate);
   const channels = useStore((s) => s.settings.slack.channels);
+  const timeLogs = useStore((s) => s.timeLogs);
   const plan = useTodayPlan();
+  const minutesLogged = timeLogs
+    .filter((l) => l.user_id === currentUserId && l.date === plan.today)
+    .reduce((sum, l) => sum + l.minutes, 0);
 
   const [completed, setCompleted] = useState("");
   const [inProgress, setInProgress] = useState("");
@@ -111,6 +115,9 @@ export default function UpdatesPage() {
     if (inProgress.trim()) parts.push(`🔨 In progress\n${inProgress.trim()}`);
     if (blockers.trim()) parts.push(`🚧 Blockers\n${blockers.trim()}`);
     if (!parts.length) return;
+    if (minutesLogged > 0) {
+      parts.push(`🕒 Hours logged: ${formatDuration(minutesLogged)}`);
+    }
     const feedText = parts.join("\n\n");
     const slackText = `*${currentUser?.name ?? "Someone"}* — daily update\n\n${feedText}`;
 

@@ -41,6 +41,7 @@ export interface Project {
   status: "active" | "paused" | "done";
   color: string; // token key, e.g. "indigo"
   slack_channel_id: string | null; // channel name (from the connected workspace)
+  git_repo_url: string | null; // linked git repository (e.g. GitHub)
   target_date: string | null;
 }
 
