@@ -609,14 +609,14 @@ h2 {
   height: 100%;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 10px;
+  gap: 7px;
+  padding: 0 7px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-left-width: 3px;
   border-left-color: var(--accent);
-  border-radius: 14px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  border-radius: 11px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 .mini.mini-break {
@@ -626,14 +626,18 @@ h2 {
   border-left-color: var(--faint);
 }
 .mini-dot {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   flex: none;
-  border-radius: 8px;
+  border-radius: 6px;
   display: grid;
   place-items: center;
   background: rgba(16, 185, 129, 0.16);
   color: var(--accent);
+}
+.mini-dot svg {
+  width: 12px;
+  height: 12px;
 }
 .mini-break .mini-dot {
   background: rgba(245, 158, 11, 0.16);
@@ -654,30 +658,31 @@ h2 {
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   padding: 0;
 }
 .mini-clock {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
   color: var(--fg);
 }
 .mini-label {
-  font-size: 11px;
+  font-size: 9px;
+  line-height: 1.2;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 150px;
+  max-width: 118px;
 }
 .mini-stop {
   -webkit-app-region: no-drag;
   flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
   display: grid;

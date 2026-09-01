@@ -3,8 +3,8 @@ import { join } from "node:path";
 import type { Settings } from "./settings";
 import type { TimerState } from "../preload/index";
 
-const WIDTH = 240;
-const HEIGHT = 60;
+const WIDTH = 194;
+const HEIGHT = 44;
 
 let mini: BrowserWindow | null = null;
 

@@ -10,9 +10,13 @@ import {
   Lock,
   Plug,
   Building2,
+  Bell,
   Circle,
   CheckCircle2,
+  Eye,
+  Loader2,
 } from "lucide-react";
+import { useState } from "react";
 
 const VIEW_OPTIONS = [
   { v: "/my-day", label: "My Day" },
@@ -247,8 +251,133 @@ export default function SettingsPage() {
             )}
           </Row>
         </section>
+
+        {isAdmin && <AlertsCard />}
       </div>
     </div>
+  );
+}
+
+function AlertsCard() {
+  const settings = useStore((s) => s.settings);
+  const updateSettings = useStore((s) => s.updateSettings);
+  const alerts = settings.general.alerts ?? {};
+  const enabled = alerts.enabled ?? true;
+
+  const setAlerts = (patch: Partial<NonNullable<typeof alerts>>) =>
+    updateSettings({
+      general: { ...settings.general, alerts: { ...alerts, ...patch } },
+    });
+
+  const [preview, setPreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const runPreview = async () => {
+    setLoading(true);
+    setPreview(null);
+    try {
+      const r = await fetch("/api/alerts/daily?preview=1");
+      const j = (await r.json()) as { text?: string; error?: string };
+      setPreview(j.text ?? j.error ?? "No response.");
+    } catch {
+      setPreview("Could not reach the alerts service.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <section className="card mt-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-faint" />
+          <div>
+            <h2 className="text-sm font-semibold text-fg">Activity alerts</h2>
+            <p className="text-xs text-faint">
+              A daily Slack summary of yesterday, flagging long breaks and low
+              active time. DM&apos;d to admins each morning.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setAlerts({ enabled: !enabled })}
+          className={cn(
+            "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+            enabled ? "bg-accent" : "bg-surface-2 border border-border"
+          )}
+          aria-pressed={enabled}
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition-all",
+              enabled ? "left-[22px]" : "left-0.5"
+            )}
+            style={{ height: 18, width: 18 }}
+          />
+        </button>
+      </div>
+
+      <div className="mt-3">
+        <Row label="Max lunch break">
+          <div className="flex items-center gap-1.5">
+            <EditableText
+              type="number"
+              value={String(alerts.lunch_max_min ?? 60)}
+              onCommit={(v) =>
+                setAlerts({ lunch_max_min: Math.max(0, Number(v) || 0) })
+              }
+              className="input w-20 text-right"
+            />
+            <span className="text-sm text-faint">min</span>
+          </div>
+        </Row>
+        <Row label="Max tea break">
+          <div className="flex items-center gap-1.5">
+            <EditableText
+              type="number"
+              value={String(alerts.tea_max_min ?? 20)}
+              onCommit={(v) =>
+                setAlerts({ tea_max_min: Math.max(0, Number(v) || 0) })
+              }
+              className="input w-20 text-right"
+            />
+            <span className="text-sm text-faint">min</span>
+          </div>
+        </Row>
+        <Row label="Min active work per day" last>
+          <div className="flex items-center gap-1.5">
+            <EditableText
+              type="number"
+              value={String(alerts.min_active_hours ?? 6.5)}
+              onCommit={(v) =>
+                setAlerts({ min_active_hours: Math.max(0, Number(v) || 0) })
+              }
+              className="input w-20 text-right"
+            />
+            <span className="text-sm text-faint">hours</span>
+          </div>
+        </Row>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+        <span className="text-xs text-faint">
+          {enabled ? "Sends daily at 9:00 AM IST." : "Alerts are turned off."}
+        </span>
+        <button onClick={runPreview} disabled={loading} className="btn-outline gap-1.5">
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+          Preview yesterday
+        </button>
+      </div>
+
+      {preview && (
+        <pre className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-3 text-xs leading-relaxed text-fg">
+          {preview}
+        </pre>
+      )}
+    </section>
   );
 }
 

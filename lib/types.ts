@@ -82,6 +82,12 @@ export interface AppSettings {
     week_start: "sunday" | "monday";
     timezone: string;
     min_daily_points?: number; // story points required before the standup can post
+    alerts?: {
+      enabled?: boolean;
+      lunch_max_min?: number; // a lunch break longer than this is flagged
+      tea_max_min?: number; // a tea (short) break longer than this is flagged
+      min_active_hours?: number; // less active work than this in a day is flagged
+    };
   };
 }
 

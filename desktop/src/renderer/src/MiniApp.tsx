@@ -42,7 +42,7 @@ export function MiniApp() {
       onDoubleClick={() => window.api?.miniCommand?.("open")}
     >
       <span className="mini-dot">
-        <Timer style={{ width: 14, height: 14 }} />
+        <Timer style={{ width: 12, height: 12 }} />
       </span>
       <button
         className="mini-main"
@@ -60,7 +60,7 @@ export function MiniApp() {
           onClick={() => window.api?.miniCommand?.("stop")}
           title="Stop & log"
         >
-          <Square style={{ width: 13, height: 13 }} fill="currentColor" />
+          <Square style={{ width: 11, height: 11 }} fill="currentColor" />
         </button>
       )}
     </div>
