@@ -1,10 +1,88 @@
-import { useEffect, useState } from "react";
-import { Coffee, RefreshCw, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Coffee, Loader2, MessageSquarePlus, RefreshCw, Square } from "lucide-react";
 import { useStore } from "../lib/store";
 import { fmtElapsed } from "../lib/time";
 import { BREAK_LABEL, type BreakType } from "../lib/types";
 
 const BREAK_TYPES: BreakType[] = ["short", "lunch", "other"];
+
+function CommentBox({ taskId }: { taskId: string }) {
+  const addComment = useStore((s) => s.addComment);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const submit = async () => {
+    const body = text.trim();
+    if (!body || saving) return;
+    setSaving(true);
+    const ok = await addComment(taskId, body);
+    setSaving(false);
+    if (ok) {
+      setText("");
+      setSaved(true);
+      setOpen(false);
+      setTimeout(() => setSaved(false), 2500);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button className="btn btn-ghost btn-block" onClick={() => setOpen(true)}>
+        {saved ? (
+          <>
+            <Check className="icon" style={{ color: "var(--accent)" }} /> Comment
+            added
+          </>
+        ) : (
+          <>
+            <MessageSquarePlus className="icon" /> Add a comment
+          </>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div className="comment-box">
+      <input
+        ref={inputRef}
+        className="input"
+        placeholder="Add a comment on this task…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") setOpen(false);
+        }}
+      />
+      <div className="row" style={{ marginTop: 8 }}>
+        <button
+          className="btn btn-ghost"
+          onClick={() => {
+            setOpen(false);
+            setText("");
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={submit}
+          disabled={!text.trim() || saving}
+        >
+          {saving ? <Loader2 className="icon spin" /> : "Post"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function TimerView() {
   const timer = useStore((s) => s.timer);
@@ -75,6 +153,7 @@ export function TimerView() {
               <Coffee className="icon" /> Break
             </button>
           </div>
+          <CommentBox taskId={timer.taskId} />
         </div>
       )}
     </div>

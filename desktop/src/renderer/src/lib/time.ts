@@ -35,6 +35,25 @@ export function minutesSince(startedAt: number): number {
   return Math.max(1, Math.round((Date.now() - startedAt) / 60000));
 }
 
+export function fmtDuration(min: number): string {
+  if (min <= 0) return "0m";
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+export function fmtDate(iso: string): string {
+  // "2026-08-26" -> "Aug 26" (avoids a date lib; local parse)
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  return `${months[m - 1]} ${d}, ${y}`;
+}
+
 export function fmtElapsed(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);

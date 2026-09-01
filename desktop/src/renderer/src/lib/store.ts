@@ -8,7 +8,7 @@ import {
   minutesSince,
   todayISO,
 } from "./time";
-import type { BreakType, Project, Task, TeamMember } from "./types";
+import { BREAK_LABEL, type BreakType, type Project, type Task, type TeamMember, type TimeEntry } from "./types";
 
 export interface RunningTimer {
   taskId: string;
@@ -47,9 +47,12 @@ interface State {
   authError: string | null;
 
   me: TeamMember | null;
-  tasks: Task[]; // my open tasks
+  tasks: Task[]; // all open tasks (picker filters to "mine" unless Show all)
   planTaskIds: string[]; // today's My Day plan
   projectsById: Record<string, Project>;
+
+  entries: TimeEntry[]; // my time_logs + breaks (recent), for the Entries view
+  entriesLoading: boolean;
 
   timer: RunningTimer | null;
   brk: RunningBreak | null;
@@ -58,6 +61,8 @@ interface State {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   reloadData: () => Promise<void>;
+  loadEntries: () => Promise<void>;
+  addComment: (taskId: string, body: string) => Promise<boolean>;
 
   taskById: (id: string | null | undefined) => Task | undefined;
 
@@ -92,6 +97,8 @@ export const useStore = create<State>((set, get) => ({
   tasks: [],
   planTaskIds: [],
   projectsById: {},
+  entries: [],
+  entriesLoading: false,
 
   timer: load<RunningTimer>(TIMER_KEY),
   brk: load<RunningBreak>(BREAK_KEY),
@@ -172,10 +179,10 @@ export const useStore = create<State>((set, get) => ({
     if (!me) return;
     const date = todayISO();
     const [tasksRes, projRes, planRes] = await Promise.all([
+      // All open tasks — the picker shows "mine" by default and can toggle to all.
       supabase
         .from("tasks")
         .select("id,project_id,title,assignee_id,due_date,story_points,status,urgency")
-        .eq("assignee_id", me.id)
         .neq("status", "done"),
       supabase.from("projects").select("id,name,color,status"),
       supabase
@@ -199,6 +206,95 @@ export const useStore = create<State>((set, get) => ({
         (planRes.data as { task_id: string }[] | null)?.map((r) => r.task_id) ??
         [],
     });
+  },
+
+  loadEntries: async () => {
+    const me = get().me;
+    if (!me) return;
+    set({ entriesLoading: true });
+    const [logsRes, brkRes] = await Promise.all([
+      supabase
+        .from("time_logs")
+        .select("id,date,start_time,end_time,minutes,note,task:tasks(title)")
+        .eq("user_id", me.id)
+        .order("date", { ascending: false })
+        .order("start_time", { ascending: false })
+        .limit(300),
+      supabase
+        .from("breaks")
+        .select("id,date,start_time,end_time,minutes,type")
+        .eq("user_id", me.id)
+        .order("date", { ascending: false })
+        .order("start_time", { ascending: false })
+        .limit(300),
+    ]);
+    if (logsRes.error) console.error("[entries/logs]", logsRes.error.message);
+    if (brkRes.error) console.error("[entries/breaks]", brkRes.error.message);
+
+    type LogRow = {
+      id: string;
+      date: string;
+      start_time: string;
+      end_time: string;
+      minutes: number;
+      note: string;
+      task: { title: string } | { title: string }[] | null;
+    };
+    type BrkRow = {
+      id: string;
+      date: string;
+      start_time: string;
+      end_time: string;
+      minutes: number;
+      type: BreakType;
+    };
+    const titleOf = (t: LogRow["task"]): string | null =>
+      Array.isArray(t) ? t[0]?.title ?? null : t?.title ?? null;
+
+    const work: TimeEntry[] = ((logsRes.data as LogRow[] | null) ?? []).map(
+      (r) => ({
+        id: r.id,
+        kind: "work",
+        date: r.date,
+        start_time: r.start_time,
+        end_time: r.end_time,
+        minutes: r.minutes,
+        title: titleOf(r.task) ?? (r.note || "Untitled task"),
+      })
+    );
+    const rest: TimeEntry[] = ((brkRes.data as BrkRow[] | null) ?? []).map(
+      (r) => ({
+        id: r.id,
+        kind: "break",
+        date: r.date,
+        start_time: r.start_time,
+        end_time: r.end_time,
+        minutes: r.minutes,
+        title: BREAK_LABEL[r.type] ?? "Break",
+      })
+    );
+    const entries = [...work, ...rest].sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) || b.start_time.localeCompare(a.start_time)
+    );
+    set({ entries, entriesLoading: false });
+  },
+
+  addComment: async (taskId, body) => {
+    const me = get().me;
+    const text = body.trim();
+    if (!me || !text) return false;
+    const { error } = await supabase.from("comments").insert({
+      id: genId("cm"),
+      task_id: taskId,
+      author_id: me.id,
+      body: text,
+    });
+    if (error) {
+      console.error("[comments] insert:", error.message);
+      return false;
+    }
+    return true;
   },
 
   taskById: (id) => get().tasks.find((t) => t.id === id),

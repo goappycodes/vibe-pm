@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Timer } from "lucide-react";
+import { ListChecks, LogOut, Timer } from "lucide-react";
 import { useStore } from "./lib/store";
 import { fmtElapsed } from "./lib/time";
 import { BREAK_LABEL } from "./lib/types";
@@ -7,6 +7,9 @@ import { LoginView } from "./components/LoginView";
 import { TaskPicker } from "./components/TaskPicker";
 import { TimerView } from "./components/TimerView";
 import { BreakView } from "./components/BreakView";
+import { EntriesView } from "./components/EntriesView";
+
+type Screen = "main" | "entries";
 
 function Loading({ label }: { label: string }) {
   return (
@@ -17,21 +20,27 @@ function Loading({ label }: { label: string }) {
   );
 }
 
-function Header() {
+function Header({
+  screen,
+  setScreen,
+}: {
+  screen: Screen;
+  setScreen: (s: Screen) => void;
+}) {
   const me = useStore((s) => s.me);
   const signOut = useStore((s) => s.signOut);
   const [open, setOpen] = useState(false);
   const [auto, setAuto] = useState<boolean | null>(null);
+  const [mini, setMini] = useState<boolean | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open && auto === null && window.api?.getAutoLaunch) {
-      window.api
-        .getAutoLaunch()
-        .then(setAuto)
-        .catch(() => setAuto(false));
-    }
-  }, [open, auto]);
+    if (!open) return;
+    if (auto === null)
+      window.api?.getAutoLaunch?.().then(setAuto).catch(() => setAuto(false));
+    if (mini === null)
+      window.api?.getMiniEnabled?.().then(setMini).catch(() => setMini(true));
+  }, [open, auto, mini]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -45,8 +54,11 @@ function Header() {
 
   const toggleAuto = async () => {
     if (!window.api?.setAutoLaunch) return;
-    const applied = await window.api.setAutoLaunch(!(auto ?? false));
-    setAuto(applied);
+    setAuto(await window.api.setAutoLaunch(!(auto ?? false)));
+  };
+  const toggleMini = async () => {
+    if (!window.api?.setMiniEnabled) return;
+    setMini(await window.api.setMiniEnabled(!(mini ?? true)));
   };
 
   return (
@@ -57,19 +69,34 @@ function Header() {
         </span>
         Vibe Timer
       </div>
-      <button
-        className="avatar"
-        onClick={() => setOpen((v) => !v)}
-        title={me?.name}
-      >
-        {initial}
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <button
+          className={`icon-btn ${screen === "entries" ? "active" : ""}`}
+          title="My time entries"
+          onClick={() => setScreen(screen === "entries" ? "main" : "entries")}
+        >
+          <ListChecks className="icon" />
+        </button>
+        <button
+          className="avatar"
+          onClick={() => setOpen((v) => !v)}
+          title={me?.name}
+        >
+          {initial}
+        </button>
+      </div>
       {open && (
         <div className="menu">
           <div className="who">
             <div className="name">{me?.name}</div>
             <div className="email">{me?.email}</div>
           </div>
+          <button className="menu-row" onClick={toggleMini}>
+            <span>Mini timer overlay</span>
+            <span className="faint">
+              {mini === null ? "…" : mini ? "On" : "Off"}
+            </span>
+          </button>
           <button className="menu-row" onClick={toggleAuto}>
             <span>Start on login</span>
             <span className="faint">
@@ -100,30 +127,56 @@ export function App() {
   const timer = useStore((s) => s.timer);
   const brk = useStore((s) => s.brk);
   const taskById = useStore((s) => s.taskById);
+  const [screen, setScreen] = useState<Screen>("main");
 
   useEffect(() => {
     init();
   }, [init]);
 
-  // Mirror live state into the tray tooltip/title, ticking every second.
+  // Report live state to the main process (tray, mini window, idle prompt).
   useEffect(() => {
     const push = () => {
-      if (!window.api?.updateStatus) return;
+      if (!window.api?.setTimerState) return;
+      if (phase !== "ready") {
+        window.api.setTimerState({ mode: "inactive", label: "" });
+        return;
+      }
       if (brk) {
         const sec = Math.floor((Date.now() - brk.startedAt) / 1000);
-        window.api.updateStatus(`☕ ${BREAK_LABEL[brk.type]} · ${fmtElapsed(sec)}`);
+        window.api.setTimerState({
+          mode: "break",
+          label: `☕ ${BREAK_LABEL[brk.type]} · ${fmtElapsed(sec)}`,
+          breakType: BREAK_LABEL[brk.type],
+          startedAt: brk.startedAt,
+        });
       } else if (timer) {
         const sec = Math.floor((Date.now() - timer.startedAt) / 1000);
         const t = taskById(timer.taskId);
-        window.api.updateStatus(`▶ ${fmtElapsed(sec)} · ${t?.title ?? "Task"}`);
+        window.api.setTimerState({
+          mode: "timer",
+          label: `▶ ${fmtElapsed(sec)} · ${t?.title ?? "Task"}`,
+          taskTitle: t?.title ?? "Task",
+          startedAt: timer.startedAt,
+        });
       } else {
-        window.api.updateStatus("Idle");
+        window.api.setTimerState({ mode: "idle", label: "Idle" });
       }
     };
     push();
     const id = setInterval(push, 1000);
     return () => clearInterval(id);
-  }, [timer, brk, taskById]);
+  }, [timer, brk, phase, taskById]);
+
+  // Commands from the tray / mini window / idle prompt.
+  useEffect(() => {
+    if (!window.api?.onCommand) return;
+    return window.api.onCommand((cmd) => {
+      const s = useStore.getState();
+      if (cmd === "stop") s.stopTimer();
+      else if (cmd === "open-entries") setScreen("entries");
+      else if (cmd === "open-picker") setScreen("main");
+    });
+  }, []);
 
   let body: React.ReactNode;
   if (phase === "init") body = <Loading label="Starting…" />;
@@ -131,13 +184,15 @@ export function App() {
   else if (phase === "signed-out" || (phase === "authenticating" && !me)) {
     body = <LoginView />;
   } else if (phase === "authenticating") body = <Loading label="Signing in…" />;
+  else if (screen === "entries")
+    body = <EntriesView onBack={() => setScreen("main")} />;
   else if (brk) body = <BreakView />;
   else if (timer) body = <TimerView />;
   else body = <TaskPicker />;
 
   return (
     <div className="app">
-      {phase === "ready" && <Header />}
+      {phase === "ready" && <Header screen={screen} setScreen={setScreen} />}
       {body}
     </div>
   );

@@ -415,3 +415,201 @@ h2 {
   height: 16px;
   flex: none;
 }
+
+/* header icon button */
+.icon-btn {
+  -webkit-app-region: no-drag;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.icon-btn.active {
+  color: var(--accent);
+}
+
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* toggle switch */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px 2px;
+}
+.switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.switch.on {
+  background: var(--accent);
+  border-color: transparent;
+}
+.switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #fff;
+  transition: left 0.15s;
+}
+.switch.on .knob {
+  left: 18px;
+}
+
+/* comment box in the timer view */
+.comment-box {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 2px;
+}
+
+/* time entries */
+.entry-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 4px 4px;
+}
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 9px;
+}
+.entry:hover {
+  background: var(--surface-2);
+}
+.entry-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.entry.is-break .entry-title {
+  color: var(--muted);
+}
+.entry-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.entry-dur {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: right;
+}
+
+/* ---- mini always-on-top overlay ---- */
+.mini-body {
+  background: transparent !important;
+}
+.mini {
+  -webkit-app-region: drag;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-left-color: var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.mini.mini-break {
+  border-left-color: var(--amber);
+}
+.mini.mini-idle {
+  border-left-color: var(--faint);
+}
+.mini-dot {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(16, 185, 129, 0.16);
+  color: var(--accent);
+}
+.mini-break .mini-dot {
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--amber);
+}
+.mini-idle .mini-dot {
+  background: var(--surface-2);
+  color: var(--faint);
+}
+.mini-main {
+  -webkit-app-region: no-drag;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0;
+}
+.mini-clock {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.mini-label {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+.mini-stop {
+  -webkit-app-region: no-drag;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.mini-stop:hover {
+  background: var(--accent-hover);
+}

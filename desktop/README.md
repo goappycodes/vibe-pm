@@ -22,6 +22,17 @@ Built with **Electron + electron-vite + React + zustand**.
 - **Breaks.** Start a break (short / lunch / away) from the running timer or the
   picker. Work done so far is logged, then the break is timed and written to the
   `breaks` table. Ending a break drops you back to the task picker.
+- **Pick any task.** The picker defaults to your assigned tasks, with a
+  **Show all tasks** switch to start a timer on anyone's task.
+- **Mini overlay.** A tiny always-on-top pill shows the running timer on top of
+  everything, draggable, with a stop button; click it to open the app. Toggle it
+  from the header menu (_Mini timer overlay_).
+- **My time entries.** The list icon in the header opens every time entry you've
+  logged (work + breaks), grouped by day with per-day totals.
+- **Idle nudge.** If you're neither on a task nor a break, it surfaces the window
+  and a notification every 5 minutes prompting you to pick one.
+- **Comment on your task.** Add a comment to the task you're timing straight from
+  the running-timer screen (writes to the shared `comments` table).
 - **Tray presence.** Lives in the system tray; the tooltip shows the live
   elapsed time. Closing the window hides to tray; _Quit_ from the tray exits.
 

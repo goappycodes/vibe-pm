@@ -42,6 +42,17 @@ export interface Task {
 
 export type BreakType = "short" | "lunch" | "other";
 
+/** A row in the "my time entries" list — work (time_logs) or a break. */
+export interface TimeEntry {
+  id: string;
+  kind: "work" | "break";
+  date: string; // ISO date
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  minutes: number;
+  title: string; // task title, or break label
+}
+
 export const URGENCY_RANK: Record<Urgency, number> = {
   low: 0,
   medium: 1,

@@ -11,17 +11,44 @@ const PROJECT_DOT: Record<string, string> = {
   sky: "#0ea5e9",
 };
 
+const SHOW_ALL_KEY = "vibe-timer.showAll";
+
 export function TaskPicker() {
-  const tasks = useStore((s) => s.tasks);
+  const me = useStore((s) => s.me);
+  const allTasks = useStore((s) => s.tasks);
   const planTaskIds = useStore((s) => s.planTaskIds);
   const projectsById = useStore((s) => s.projectsById);
   const startTimer = useStore((s) => s.startTimer);
   const startBreak = useStore((s) => s.startBreak);
   const [q, setQ] = useState("");
+  const [showAll, setShowAll] = useState(() => {
+    try {
+      return localStorage.getItem(SHOW_ALL_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
+  const toggleShowAll = () => {
+    setShowAll((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(SHOW_ALL_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const source = useMemo(
+    () =>
+      showAll ? allTasks : allTasks.filter((t) => t.assignee_id === me?.id),
+    [showAll, allTasks, me]
+  );
   const ordered = useMemo(
-    () => orderPickerTasks(tasks, planTaskIds),
-    [tasks, planTaskIds]
+    () => orderPickerTasks(source, planTaskIds),
+    [source, planTaskIds]
   );
   const plan = useMemo(() => new Set(planTaskIds), [planTaskIds]);
   const query = q.trim().toLowerCase();
@@ -33,6 +60,7 @@ export function TaskPicker() {
 
   const item = (t: Task) => {
     const p = projectsById[t.project_id];
+    const mine = t.assignee_id === me?.id;
     return (
       <button key={t.id} className="task-item" onClick={() => startTimer(t.id)}>
         <span
@@ -43,6 +71,7 @@ export function TaskPicker() {
           <div className="task-title">{t.title}</div>
           <div className="task-meta">
             <span>{p?.name ?? "No project"}</span>
+            {showAll && !mine && <span className="badge">not mine</span>}
             {(t.urgency === "urgent" || t.urgency === "high") && (
               <span className={`badge ${t.urgency}`}>{t.urgency}</span>
             )}
@@ -55,10 +84,28 @@ export function TaskPicker() {
 
   return (
     <div className="screen">
-      <h1>What are you working on?</h1>
-      <p className="muted small">Pick a task — the timer starts right away.</p>
+      <div className="picker-head">
+        <div>
+          <h1>What are you working on?</h1>
+          <p className="muted small">Pick a task — the timer starts right away.</p>
+        </div>
+      </div>
 
-      <div style={{ position: "relative", marginTop: 12 }}>
+      <label className="switch-row" title="Include tasks not assigned to you">
+        <span className="small muted">
+          {showAll ? "Showing all tasks" : "Only my tasks"}
+        </span>
+        <button
+          role="switch"
+          aria-checked={showAll}
+          className={`switch ${showAll ? "on" : ""}`}
+          onClick={toggleShowAll}
+        >
+          <span className="knob" />
+        </button>
+      </label>
+
+      <div style={{ position: "relative", marginTop: 8 }}>
         <Search
           className="icon"
           style={{ position: "absolute", left: 10, top: 10, color: "var(--faint)" }}
@@ -78,7 +125,13 @@ export function TaskPicker() {
         {planned.map(item)}
         {rest.length > 0 && (
           <div className="section-label">
-            {planned.length ? "Assigned to me" : "Your tasks"}
+            {planned.length
+              ? showAll
+                ? "All tasks"
+                : "Assigned to me"
+              : showAll
+                ? "All open tasks"
+                : "Your tasks"}
           </div>
         )}
         {rest.map(item)}
@@ -87,8 +140,10 @@ export function TaskPicker() {
             className="faint small"
             style={{ textAlign: "center", padding: "28px 0" }}
           >
-            {tasks.length === 0
-              ? "No open tasks assigned to you."
+            {source.length === 0
+              ? showAll
+                ? "No open tasks found."
+                : "No open tasks assigned to you — try “all tasks”."
               : "No tasks match your search."}
           </p>
         )}

@@ -1,5 +1,13 @@
 export {};
 
+export interface TimerState {
+  mode: "timer" | "break" | "idle" | "inactive";
+  label: string;
+  taskTitle?: string;
+  breakType?: string;
+  startedAt?: number;
+}
+
 declare global {
   interface Window {
     api: {
@@ -10,8 +18,14 @@ declare global {
       }>;
       getAutoLaunch: () => Promise<boolean>;
       setAutoLaunch: (enabled: boolean) => Promise<boolean>;
-      updateStatus: (status: string) => void;
       hideWindow: () => void;
+      setTimerState: (state: TimerState) => void;
+      onCommand: (cb: (cmd: string) => void) => () => void;
+      onTimerState: (cb: (s: TimerState) => void) => () => void;
+      miniReady: () => void;
+      miniCommand: (cmd: "open" | "stop") => void;
+      getMiniEnabled: () => Promise<boolean>;
+      setMiniEnabled: (enabled: boolean) => Promise<boolean>;
     };
   }
 }
