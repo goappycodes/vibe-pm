@@ -25,6 +25,7 @@ import {
 } from "@/lib/utils";
 import {
   ArrowLeft,
+  Ban,
   Clock,
   ListChecks,
   ListPlus,
@@ -85,6 +86,7 @@ export default function MemberPage() {
     const d = daysFromToday(t.due_date);
     return d !== null && d < 0;
   }).length;
+  const blocked = open.filter((t) => t.status === "blocked").length;
 
   // Time logged by this member in the last 7 days — recent effort for leads.
   const logged7d = useMemo(() => {
@@ -195,9 +197,15 @@ export default function MemberPage() {
         </div>
 
         {/* stats */}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat icon={<ListChecks className="h-4 w-4" />} label="Open tasks" value={open.length} />
           <Stat icon={<Target className="h-4 w-4" />} label="Story points" value={openPoints} />
+          <Stat
+            icon={<Ban className="h-4 w-4" />}
+            label="Blocked"
+            value={blocked}
+            tone={blocked > 0 ? "amber" : undefined}
+          />
           <Stat
             icon={<TriangleAlert className="h-4 w-4" />}
             label="Overdue"
@@ -466,7 +474,7 @@ function Stat({
   icon: React.ReactNode;
   label: string;
   value: number | string;
-  tone?: "rose";
+  tone?: "rose" | "amber";
 }) {
   return (
     <div className="card flex items-center gap-3 p-3.5">
@@ -475,7 +483,9 @@ function Stat({
           "flex h-9 w-9 items-center justify-center rounded-lg",
           tone === "rose"
             ? "bg-rose-50 text-rose-600 dark:bg-rose-500/10"
-            : "bg-surface-2 text-muted"
+            : tone === "amber"
+              ? "bg-amber-50 text-amber-600 dark:bg-amber-500/10"
+              : "bg-surface-2 text-muted"
         )}
       >
         {icon}

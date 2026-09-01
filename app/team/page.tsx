@@ -98,6 +98,7 @@ export default function TeamPage() {
               const d = daysFromToday(t.due_date);
               return d !== null && d < 0;
             }).length;
+            const blocked = mine.filter((t) => t.status === "blocked").length;
             return (
               <MemberRow
                 key={m.id}
@@ -106,6 +107,7 @@ export default function TeamPage() {
                 isSelf={m.id === currentUser?.id}
                 openTasks={mine.length}
                 overdue={overdue}
+                blocked={blocked}
               />
             );
           })}
@@ -147,12 +149,14 @@ function MemberRow({
   isSelf,
   openTasks,
   overdue,
+  blocked,
 }: {
   member: TeamMember;
   editable: boolean;
   isSelf: boolean;
   openTasks: number;
   overdue: number;
+  blocked: number;
 }) {
   const updateMember = useStore((s) => s.updateMember);
   const removeMember = useStore((s) => s.removeMember);
@@ -182,6 +186,12 @@ function MemberRow({
           </Link>
           <div className="px-1.5 text-[11px] text-faint">
             {openTasks} open {openTasks === 1 ? "task" : "tasks"}
+            {blocked > 0 && (
+              <span className="font-medium text-amber-600 dark:text-amber-400">
+                {" "}
+                · {blocked} blocked
+              </span>
+            )}
             {overdue > 0 && (
               <span className="font-medium text-rose-600 dark:text-rose-400">
                 {" "}
