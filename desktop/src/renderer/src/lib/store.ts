@@ -5,7 +5,9 @@ import {
   addMinutesToHHMM,
   genId,
   hhmm,
+  isFrozenDate,
   minutesSince,
+  splitInterval,
   todayISO,
 } from "./time";
 import { BREAK_LABEL, type BreakType, type Project, type Task, type TeamMember, type TimeEntry } from "./types";
@@ -63,6 +65,19 @@ interface State {
   reloadData: () => Promise<void>;
   loadEntries: () => Promise<void>;
   addComment: (taskId: string, body: string) => Promise<boolean>;
+  requestEntryChange: (
+    type: "edit" | "add" | "delete",
+    input: {
+      timeLogId?: string;
+      taskId?: string | null;
+      projectId?: string | null;
+      date?: string;
+      start_time?: string;
+      end_time?: string;
+      note?: string;
+      reason?: string;
+    }
+  ) => Promise<boolean>;
   recordActivity: (s: {
     date: string;
     minute: string;
@@ -219,10 +234,12 @@ export const useStore = create<State>((set, get) => ({
     const me = get().me;
     if (!me) return;
     set({ entriesLoading: true });
-    const [logsRes, brkRes] = await Promise.all([
+    const [logsRes, brkRes, reqRes] = await Promise.all([
       supabase
         .from("time_logs")
-        .select("id,date,start_time,end_time,minutes,note,task:tasks(title)")
+        .select(
+          "id,date,start_time,end_time,minutes,note,task_id,project_id,modified,task:tasks(title)"
+        )
         .eq("user_id", me.id)
         .order("date", { ascending: false })
         .order("start_time", { ascending: false })
@@ -234,9 +251,21 @@ export const useStore = create<State>((set, get) => ({
         .order("date", { ascending: false })
         .order("start_time", { ascending: false })
         .limit(300),
+      supabase
+        .from("time_log_change_requests")
+        .select("time_log_id")
+        .eq("user_id", me.id)
+        .eq("status", "pending"),
     ]);
     if (logsRes.error) console.error("[entries/logs]", logsRes.error.message);
     if (brkRes.error) console.error("[entries/breaks]", brkRes.error.message);
+    if (reqRes.error) console.error("[entries/requests]", reqRes.error.message);
+
+    const pendingIds = new Set(
+      ((reqRes.data as { time_log_id: string | null }[] | null) ?? [])
+        .map((r) => r.time_log_id)
+        .filter((x): x is string => !!x)
+    );
 
     type LogRow = {
       id: string;
@@ -245,6 +274,9 @@ export const useStore = create<State>((set, get) => ({
       end_time: string;
       minutes: number;
       note: string;
+      task_id: string | null;
+      project_id: string | null;
+      modified: boolean;
       task: { title: string } | { title: string }[] | null;
     };
     type BrkRow = {
@@ -267,6 +299,10 @@ export const useStore = create<State>((set, get) => ({
         end_time: r.end_time,
         minutes: r.minutes,
         title: titleOf(r.task) ?? (r.note || "Untitled task"),
+        taskId: r.task_id,
+        projectId: r.project_id,
+        modified: r.modified,
+        pending: pendingIds.has(r.id),
       })
     );
     const rest: TimeEntry[] = ((brkRes.data as BrkRow[] | null) ?? []).map(
@@ -301,6 +337,37 @@ export const useStore = create<State>((set, get) => ({
       console.error("[comments] insert:", error.message);
       return false;
     }
+    return true;
+  },
+
+  requestEntryChange: async (type, input) => {
+    const me = get().me;
+    if (!me) return false;
+    const payload =
+      type === "delete"
+        ? {}
+        : {
+            task_id: input.taskId ?? null,
+            project_id: input.projectId ?? null,
+            date: input.date,
+            start_time: input.start_time,
+            end_time: input.end_time,
+            note: input.note ?? "",
+          };
+    const { error } = await supabase.from("time_log_change_requests").insert({
+      id: genId("cr"),
+      time_log_id: input.timeLogId ?? null,
+      user_id: me.id,
+      type,
+      payload,
+      status: "pending",
+      note: input.reason ?? "",
+    });
+    if (error) {
+      console.error("[change-request] insert:", error.message);
+      return false;
+    }
+    await get().loadEntries();
     return true;
   },
 
@@ -343,23 +410,36 @@ export const useStore = create<State>((set, get) => ({
       return;
     }
     const task = get().taskById(timer.taskId);
-    const minutes = minutesSince(timer.startedAt);
-    const startClock = hhmm(new Date(timer.startedAt));
     set({ timer: null });
     save(TIMER_KEY, null);
+    // Frozen-date demo mode logs a single entry; real mode splits across midnight.
+    const segments = isFrozenDate()
+      ? [
+          {
+            date: todayISO(),
+            start_time: hhmm(new Date(timer.startedAt)),
+            end_time: addMinutesToHHMM(
+              hhmm(new Date(timer.startedAt)),
+              minutesSince(timer.startedAt)
+            ),
+            minutes: minutesSince(timer.startedAt),
+          },
+        ]
+      : splitInterval(timer.startedAt, Date.now());
+    const rows = segments.map((s) => ({
+      id: genId("tl"),
+      user_id: me.id,
+      project_id: task?.project_id ?? null,
+      task_id: timer.taskId,
+      date: s.date,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      minutes: s.minutes,
+      note: "Timer (desktop)",
+    }));
     void supabase
       .from("time_logs")
-      .insert({
-        id: genId("tl"),
-        user_id: me.id,
-        project_id: task?.project_id ?? null,
-        task_id: timer.taskId,
-        date: todayISO(),
-        start_time: startClock,
-        end_time: addMinutesToHHMM(startClock, minutes),
-        minutes,
-        note: "Timer (desktop)",
-      })
+      .insert(rows)
       .then(({ error }) => {
         if (error) console.error("[time_logs] insert:", error.message);
       });
@@ -387,20 +467,32 @@ export const useStore = create<State>((set, get) => ({
     set({ brk: null });
     save(BREAK_KEY, null);
     if (!brk || !me) return;
-    const minutes = minutesSince(brk.startedAt);
-    const startClock = hhmm(new Date(brk.startedAt));
+    const segments = isFrozenDate()
+      ? [
+          {
+            date: todayISO(),
+            start_time: hhmm(new Date(brk.startedAt)),
+            end_time: addMinutesToHHMM(
+              hhmm(new Date(brk.startedAt)),
+              minutesSince(brk.startedAt)
+            ),
+            minutes: minutesSince(brk.startedAt),
+          },
+        ]
+      : splitInterval(brk.startedAt, Date.now());
+    const rows = segments.map((s) => ({
+      id: genId("br"),
+      user_id: me.id,
+      date: s.date,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      minutes: s.minutes,
+      type: brk.type,
+      note: "",
+    }));
     void supabase
       .from("breaks")
-      .insert({
-        id: genId("br"),
-        user_id: me.id,
-        date: todayISO(),
-        start_time: startClock,
-        end_time: addMinutesToHHMM(startClock, minutes),
-        minutes,
-        type: brk.type,
-        note: "",
-      })
+      .insert(rows)
       .then(({ error }) => {
         if (error) console.error("[breaks] insert:", error.message);
       });

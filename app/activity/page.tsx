@@ -1,10 +1,13 @@
 "use client";
 
+import { ActivityApprovals } from "@/components/ActivityApprovals";
 import { ActivityDay, type ActivitySampleRow } from "@/components/ActivityDay";
+import { ActivityTeam } from "@/components/ActivityTeam";
 import { Avatar } from "@/components/Avatar";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
 import type { Break, TimeLog } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,6 +16,8 @@ function todayISO(): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+type Mode = "team" | "person" | "approvals";
 
 interface DayData {
   logs: TimeLog[];
@@ -28,18 +33,30 @@ export default function ActivityPage() {
   const isLead =
     currentUser?.role === "admin" || currentUser?.role === "team_lead";
 
+  const [mode, setMode] = useState<Mode>("team");
   const [userId, setUserId] = useState<string>("");
   const [date, setDate] = useState<string>(() => todayISO());
   const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(0);
 
-  // Default to viewing yourself once members hydrate.
   useEffect(() => {
     if (!userId && currentUser) setUserId(currentUser.id);
   }, [userId, currentUser]);
 
+  // Pending-approval badge count.
   useEffect(() => {
-    if (!userId || !date || !supabase) return;
+    if (!supabase) return;
+    void supabase
+      .from("time_log_change_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending")
+      .then(({ count }) => setPending(count ?? 0));
+  }, []);
+
+  // Person-mode day data.
+  useEffect(() => {
+    if (mode !== "person" || !userId || !date || !supabase) return;
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -63,7 +80,7 @@ export default function ActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [userId, date]);
+  }, [mode, userId, date]);
 
   const sortedMembers = useMemo(
     () => [...members].sort((a, b) => a.name.localeCompare(b.name)),
@@ -86,32 +103,65 @@ export default function ActivityPage() {
     );
   }
 
+  const openMember = (id: string) => {
+    setUserId(id);
+    setMode("person");
+  };
+
+  const tab = (m: Mode, label: string, badge?: number) => (
+    <button
+      onClick={() => setMode(m)}
+      className={cn(
+        "relative rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+        mode === m
+          ? "bg-accent-soft text-accent"
+          : "text-muted hover:bg-surface-2 hover:text-fg"
+      )}
+    >
+      {label}
+      {badge != null && badge > 0 && (
+        <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl px-6 py-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {viewed && <Avatar member={viewed} size="md" />}
-            <div>
-              <h2 className="text-xl font-semibold text-fg">Activity</h2>
-              <p className="text-sm text-muted">
-                How {viewed?.name?.split(" ")[0] ?? "the day"} spent the day —
-                tasks, breaks, and computer activity.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-xl font-semibold text-fg">Activity</h2>
+            <p className="text-sm text-muted">
+              Time, breaks, and computer activity across the team.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-accent"
-            >
-              {sortedMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-surface p-1">
+            {tab("team", "Team")}
+            {tab("person", "Person")}
+            {tab("approvals", "Approvals", pending)}
+          </div>
+        </div>
+
+        {mode !== "approvals" && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {mode === "person" && (
+              <>
+                {viewed && <Avatar member={viewed} size="md" />}
+                <select
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-accent"
+                >
+                  {sortedMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <input
               type="date"
               value={date}
@@ -119,19 +169,31 @@ export default function ActivityPage() {
               className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-accent"
             />
           </div>
-        </div>
+        )}
 
-        {loading && !data ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="h-6 w-6 animate-spin text-faint" />
-          </div>
-        ) : (
-          <ActivityDay
-            logs={data?.logs ?? []}
-            breaks={data?.breaks ?? []}
-            activity={data?.activity ?? []}
+        {mode === "team" && (
+          <ActivityTeam date={date} onOpenMember={openMember} />
+        )}
+
+        {mode === "approvals" && (
+          <ActivityApprovals
+            reviewerId={currentUser?.id ?? ""}
+            onCount={setPending}
           />
         )}
+
+        {mode === "person" &&
+          (loading && !data ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-6 w-6 animate-spin text-faint" />
+            </div>
+          ) : (
+            <ActivityDay
+              logs={data?.logs ?? []}
+              breaks={data?.breaks ?? []}
+              activity={data?.activity ?? []}
+            />
+          ))}
       </div>
     </div>
   );

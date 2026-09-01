@@ -24,8 +24,22 @@ mac:
     - dmg
   category: public.app-category.productivity
   icon: build/icon.png
+  # macOS auto-update REQUIRES a signed + notarized build. Set to true once you
+  # supply APPLE_ID + APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID (env).
+  notarize: false
 linux:
   target:
     - AppImage
   category: Utility
   icon: build/icon.png
+# Auto-update feed. electron-updater reads this to check for new releases.
+# `npm run dist:*` builds locally; set GH_TOKEN and add `--publish always` to
+# upload a release that installed apps then auto-update from.
+publish:
+  provider: github
+  owner: goappycodes
+  repo: vibe-pm
+# Code signing (set via env, never commit):
+#   Windows: CSC_LINK (path/base64 of .pfx) + CSC_KEY_PASSWORD
+#   macOS:   CSC_LINK + CSC_KEY_PASSWORD (Developer ID Application cert)
+# Windows installers work unsigned but show a SmartScreen prompt until signed.

@@ -143,15 +143,21 @@ export function ActivityDay({
               {logs.map((l) => (
                 <div
                   key={l.id}
-                  className="absolute top-1 flex h-5 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white"
+                  className={cn(
+                    "absolute top-1 flex h-5 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white",
+                    l.modified && "ring-1 ring-inset ring-white/80"
+                  )}
                   style={{
                     left: `${pct(toMin(l.start_time))}%`,
                     width: `${Math.max(0.6, pct(toMin(l.end_time)) - pct(toMin(l.start_time)))}%`,
                     background: taskColor(l.task_id),
                   }}
-                  title={`${taskTitle(l.task_id)} · ${l.start_time}–${l.end_time} · ${formatDuration(l.minutes)}`}
+                  title={`${taskTitle(l.task_id)} · ${l.start_time}–${l.end_time} · ${formatDuration(l.minutes)}${l.modified ? " · edited" : ""}`}
                 >
-                  <span className="truncate">{taskTitle(l.task_id)}</span>
+                  <span className="truncate">
+                    {l.modified ? "✎ " : ""}
+                    {taskTitle(l.task_id)}
+                  </span>
                 </div>
               ))}
               {breaks.map((b) => (

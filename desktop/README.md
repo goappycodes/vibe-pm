@@ -33,6 +33,15 @@ Built with **Electron + electron-vite + React + zustand**.
   and a notification every 5 minutes prompting you to pick one.
 - **Comment on your task.** Add a comment to the task you're timing straight from
   the running-timer screen (writes to the shared `comments` table).
+- **Honest time.** Sleeping or locking the computer stops the running timer/break
+  (logging up to that moment) so away time isn't counted; entries running past
+  midnight are split into one row per day.
+- **Activity tracking.** Samples OS input every 15s (active vs idle seconds only —
+  no keystrokes, screenshots, or window titles) into `activity_samples`, powering
+  the web `/activity` dashboard for admins & leads.
+- **Edit with approval.** Request an edit, a missing entry, or a deletion from the
+  entries list — it goes to your team lead, and approved changes are flagged
+  "edited" (`time_log_change_requests`).
 - **Tray presence.** Lives in the system tray; the tooltip shows the live
   elapsed time. Closing the window hides to tray; _Quit_ from the tray exits.
 
@@ -85,6 +94,13 @@ npm run dist:linux   # AppImage
 
 Each OS installer must be built on (or cross-built for) that OS. macOS builds are
 unsigned/un-notarized unless you supply signing credentials to electron-builder.
+
+**Auto-update.** Packaged builds check GitHub releases (`publish` in
+`electron-builder.yml`) on launch via `electron-updater`. To ship an update, bump
+`version`, then `GH_TOKEN=… npm run build && electron-builder --publish always`.
+Windows auto-update works unsigned (with a SmartScreen prompt); macOS auto-update
+requires a signed + notarized build (`CSC_LINK`/`CSC_KEY_PASSWORD`, then set
+`mac.notarize: true` with `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`).
 
 ## How auth stays safe
 

@@ -16,6 +16,52 @@ export function todayISO(): string {
   return APP_TODAY && APP_TODAY.length > 0 ? APP_TODAY : toISODate(new Date());
 }
 
+/** Whether we're pinned to a fixed demo date (VITE_APP_TODAY set). */
+export function isFrozenDate(): boolean {
+  return !!(APP_TODAY && APP_TODAY.length > 0);
+}
+
+export interface DaySegment {
+  date: string;
+  start_time: string; // "HH:MM" ("24:00" for a midnight boundary)
+  end_time: string;
+  minutes: number;
+}
+
+/**
+ * Split a real-time interval into one segment per local calendar day, so a timer
+ * left running past midnight logs correctly instead of producing a single row
+ * with a wrapped/negative clock.
+ */
+export function splitInterval(startMs: number, endMs: number): DaySegment[] {
+  if (endMs <= startMs) {
+    const d = new Date(startMs);
+    return [
+      { date: toISODate(d), start_time: hhmm(d), end_time: hhmm(d), minutes: 1 },
+    ];
+  }
+  const out: DaySegment[] = [];
+  let cursor = startMs;
+  while (cursor < endMs) {
+    const d = new Date(cursor);
+    const dayEndMs = new Date(
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate() + 1
+    ).getTime();
+    const segEndMs = Math.min(dayEndMs, endMs);
+    out.push({
+      date: toISODate(d),
+      start_time: hhmm(d),
+      end_time:
+        segEndMs === dayEndMs ? "24:00" : hhmm(new Date(segEndMs)),
+      minutes: Math.max(1, Math.round((segEndMs - cursor) / 60000)),
+    });
+    cursor = segEndMs;
+  }
+  return out;
+}
+
 export function hhmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(
     d.getMinutes()

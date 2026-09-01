@@ -525,6 +525,81 @@ h2 {
   text-align: right;
 }
 
+/* entry edit/add/delete form */
+.form-overlay {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+}
+.form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.field > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.card-lite {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  opacity: 0.7;
+  cursor: pointer;
+}
+.tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.tag-edited {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+.tag-pending {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+.entry-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: 2px;
+}
+.icon-btn.sm {
+  padding: 4px;
+}
+.btn-danger-solid {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.btn-danger-solid:hover {
+  background: #e11d48;
+}
+
 /* ---- mini always-on-top overlay ---- */
 .mini-body {
   background: transparent !important;

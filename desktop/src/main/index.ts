@@ -1,6 +1,14 @@
-import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Notification,
+  powerMonitor,
+  shell,
+} from "electron";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import electronUpdater from "electron-updater";
 import { startActivityTracking, stopActivityTracking } from "./activity";
 import { startBrowserLogin } from "./auth";
 import { isAutoLaunchEnabled, setAutoLaunch } from "./autolaunch";
@@ -212,6 +220,28 @@ if (!gotLock) {
       () => ({ mode: lastState.mode, taskId: lastState.taskId ?? null }),
       (sample) => mainWindow?.webContents.send("activity:sample", sample)
     );
+
+    // Sleep / lock: close the running timer or break so away time isn't counted.
+    const onAway = (reason: string) => {
+      if (lastState.mode !== "timer" && lastState.mode !== "break") return;
+      const kind = lastState.mode === "break" ? "break" : "timer";
+      mainWindow?.webContents.send("command", "suspend");
+      if (Notification.isSupported()) {
+        new Notification({
+          title: "Vibe Timer stopped",
+          body: `Your ${kind} was logged and stopped because the computer ${reason}.`,
+        }).show();
+      }
+    };
+    powerMonitor.on("suspend", () => onAway("went to sleep"));
+    powerMonitor.on("lock-screen", () => onAway("was locked"));
+
+    // Auto-update — packaged builds only; checks the configured GitHub releases.
+    if (app.isPackaged) {
+      electronUpdater.autoUpdater
+        .checkForUpdatesAndNotify()
+        .catch((e) => console.error("[updater]", e));
+    }
 
     // Mini window controls.
     ipcMain.on("mini:ready", () => sendToMini(lastState));

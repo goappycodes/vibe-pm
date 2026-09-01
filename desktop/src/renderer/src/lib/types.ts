@@ -51,6 +51,10 @@ export interface TimeEntry {
   end_time: string; // "HH:MM"
   minutes: number;
   title: string; // task title, or break label
+  taskId?: string | null; // work entries only
+  projectId?: string | null; // work entries only
+  modified?: boolean; // an approved edit was applied
+  pending?: boolean; // has an open change request awaiting review
 }
 
 export const URGENCY_RANK: Record<Urgency, number> = {

@@ -267,9 +267,34 @@ export interface TimeLog {
   minutes: number; // derived from start/end, stored so totals and exports are cheap
   note: string;
   created_at: string;
+  modified?: boolean; // an approved edit was applied
+  edited_by?: string | null;
+  edited_at?: string | null;
 }
 
 export type BreakType = "short" | "lunch" | "other";
+
+/** A user's requested change to a time entry, pending lead approval. */
+export interface TimeLogChangeRequest {
+  id: string;
+  time_log_id: string | null;
+  user_id: string;
+  type: "edit" | "add" | "delete";
+  payload: {
+    project_id?: string | null;
+    task_id?: string | null;
+    date?: string;
+    start_time?: string;
+    end_time?: string;
+    note?: string;
+  };
+  status: "pending" | "approved" | "rejected";
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  note: string;
+  review_note: string;
+  created_at: string;
+}
 
 /**
  * A break someone recorded (mostly from the desktop timer app). Structurally

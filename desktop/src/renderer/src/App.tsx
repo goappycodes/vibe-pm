@@ -176,6 +176,11 @@ export function App() {
       if (cmd === "stop") s.stopTimer();
       else if (cmd === "open-entries") setScreen("entries");
       else if (cmd === "open-picker") setScreen("main");
+      else if (cmd === "suspend") {
+        // Computer slept/locked — close the open segment so away time isn't counted.
+        if (s.timer) s.stopTimer();
+        else if (s.brk) s.endBreak();
+      }
     });
   }, []);
 
