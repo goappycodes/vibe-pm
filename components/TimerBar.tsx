@@ -2,7 +2,7 @@
 
 import { useStore } from "@/lib/store";
 import { Play, Square, Timer, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function fmtElapsed(sec: number): string {
   const h = Math.floor(sec / 3600);
@@ -67,11 +67,31 @@ export function TimerBar() {
   const openDetail = useStore((s) => s.openDetail);
 
   const [now, setNow] = useState(() => Date.now());
+
+  // Capture the app's base tab title once so we can restore it after stopping.
+  const baseTitle = useRef<string | null>(null);
   useEffect(() => {
-    if (!timer) return;
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    if (baseTitle.current === null) baseTitle.current = document.title;
+  }, []);
+
+  // Tick the elapsed clock and mirror it into the browser tab title, so a
+  // running timer is visible even from another tab (Clockify-style).
+  useEffect(() => {
+    if (!timer) {
+      if (baseTitle.current) document.title = baseTitle.current;
+      return;
+    }
+    const tick = () => {
+      setNow(Date.now());
+      const el = Math.max(0, Math.floor((Date.now() - timer.startedAt) / 1000));
+      document.title = `⏱ ${fmtElapsed(el)} · Vibe PM`;
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearInterval(id);
+      if (baseTitle.current) document.title = baseTitle.current;
+    };
   }, [timer]);
 
   if (!timer) return null;
