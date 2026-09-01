@@ -356,10 +356,12 @@ function HeaderCell({
 function TitleCell({
   value,
   done,
+  timing,
   onOpen,
 }: {
   value: string;
   done: boolean;
+  timing?: boolean;
   onOpen: () => void;
 }) {
   return (
@@ -367,11 +369,17 @@ function TitleCell({
       onClick={onOpen}
       title="Open task"
       className={cn(
-        "min-w-0 truncate rounded-md px-1.5 py-1 text-left text-sm text-fg transition-colors hover:bg-surface-2",
+        "flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm text-fg transition-colors hover:bg-surface-2",
         done && "text-faint line-through"
       )}
     >
-      {value}
+      {timing && (
+        <span
+          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+          title="Timer running"
+        />
+      )}
+      <span className="truncate">{value}</span>
     </button>
   );
 }
@@ -389,6 +397,7 @@ function TableRow({
   onOpen: () => void;
   onUpdate: (patch: Partial<Task>) => void;
 }) {
+  const timing = useStore((s) => s.runningTimer?.taskId === task.id);
   return (
     <div
       className={cn(
@@ -406,6 +415,7 @@ function TableRow({
       <TitleCell
         value={task.title}
         done={task.status === "done"}
+        timing={timing}
         onOpen={onOpen}
       />
       <ProjectPicker
