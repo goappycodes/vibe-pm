@@ -2,7 +2,7 @@
 
 import { useStore } from "@/lib/store";
 import { authRequired, supabase } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
+import { cn, daysFromToday } from "@/lib/utils";
 import {
   Building2,
   CalendarCheck2,
@@ -56,6 +56,14 @@ export function Sidebar({
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
   );
+  // My tasks that are due today or overdue — a nudge badge on My Day.
+  const myUrgent = useStore((s) =>
+    s.tasks.reduce((n, t) => {
+      if (t.assignee_id !== s.currentUserId || t.status === "done") return n;
+      const d = daysFromToday(t.due_date);
+      return d !== null && d <= 0 ? n + 1 : n;
+    }, 0)
+  );
 
   return (
     <>
@@ -100,6 +108,19 @@ export function Sidebar({
             >
               <Icon className="h-4 w-4" />
               {item.label}
+              {item.href === "/my-day" && myUrgent > 0 && (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                    active
+                      ? "bg-rose-500 text-white"
+                      : "bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300"
+                  )}
+                  title={`${myUrgent} due today or overdue`}
+                >
+                  {myUrgent}
+                </span>
+              )}
             </Link>
           );
         })}
