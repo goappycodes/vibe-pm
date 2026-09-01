@@ -10,7 +10,7 @@ import {
   type Role,
   type TeamMember,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, daysFromToday } from "@/lib/utils";
 import { Check, Lock, Plus, ShieldCheck, Trash2, UserCog, Users2, X } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -90,19 +90,25 @@ export default function TeamPage() {
             <span />
           </div>
 
-          {sorted.map((m) => (
-            <MemberRow
-              key={m.id}
-              member={m}
-              editable={isAdmin}
-              isSelf={m.id === currentUser?.id}
-              openTasks={
-                tasks.filter(
-                  (t) => t.assignee_id === m.id && t.status !== "done"
-                ).length
-              }
-            />
-          ))}
+          {sorted.map((m) => {
+            const mine = tasks.filter(
+              (t) => t.assignee_id === m.id && t.status !== "done"
+            );
+            const overdue = mine.filter((t) => {
+              const d = daysFromToday(t.due_date);
+              return d !== null && d < 0;
+            }).length;
+            return (
+              <MemberRow
+                key={m.id}
+                member={m}
+                editable={isAdmin}
+                isSelf={m.id === currentUser?.id}
+                openTasks={mine.length}
+                overdue={overdue}
+              />
+            );
+          })}
         </div>
 
         <p className="mt-3 px-1 text-xs text-faint">
@@ -140,11 +146,13 @@ function MemberRow({
   editable,
   isSelf,
   openTasks,
+  overdue,
 }: {
   member: TeamMember;
   editable: boolean;
   isSelf: boolean;
   openTasks: number;
+  overdue: number;
 }) {
   const updateMember = useStore((s) => s.updateMember);
   const removeMember = useStore((s) => s.removeMember);
@@ -174,6 +182,12 @@ function MemberRow({
           </Link>
           <div className="px-1.5 text-[11px] text-faint">
             {openTasks} open {openTasks === 1 ? "task" : "tasks"}
+            {overdue > 0 && (
+              <span className="font-medium text-rose-600 dark:text-rose-400">
+                {" "}
+                · {overdue} overdue
+              </span>
+            )}
             {isSelf && " · you"}
           </div>
         </div>
