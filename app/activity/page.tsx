@@ -7,15 +7,9 @@ import { Avatar } from "@/components/Avatar";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
 import type { Break, TimeLog } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, TODAY, toISODate } from "@/lib/utils";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-
-function todayISO(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
 
 type Mode = "team" | "person" | "approvals";
 
@@ -35,7 +29,7 @@ export default function ActivityPage() {
 
   const [mode, setMode] = useState<Mode>("team");
   const [userId, setUserId] = useState<string>("");
-  const [date, setDate] = useState<string>(() => todayISO());
+  const [date, setDate] = useState<string>(() => toISODate(TODAY));
   const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(0);
