@@ -4,8 +4,17 @@ export interface TimerState {
   mode: "timer" | "break" | "idle" | "inactive";
   label: string;
   taskTitle?: string;
+  taskId?: string;
   breakType?: string;
   startedAt?: number;
+}
+
+export interface ActivitySample {
+  date: string;
+  minute: string;
+  activeSeconds: number;
+  taskId: string | null;
+  onBreak: boolean;
 }
 
 declare global {
@@ -26,6 +35,7 @@ declare global {
       miniCommand: (cmd: "open" | "stop") => void;
       getMiniEnabled: () => Promise<boolean>;
       setMiniEnabled: (enabled: boolean) => Promise<boolean>;
+      onActivitySample: (cb: (s: ActivitySample) => void) => () => void;
     };
   }
 }

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Notification, shell } from "electron";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { startActivityTracking, stopActivityTracking } from "./activity";
 import { startBrowserLogin } from "./auth";
 import { isAutoLaunchEnabled, setAutoLaunch } from "./autolaunch";
 import { createTray, destroyTray, updateTrayStatus } from "./tray";
@@ -15,7 +16,7 @@ import {
 } from "./mini";
 import type { TimerState } from "../preload/index";
 
-const IDLE_PROMPT_MS = 5 * 60 * 1000;
+const IDLE_PROMPT_MS = 60 * 1000;
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -106,7 +107,7 @@ function reconcileMini(): void {
   }
 }
 
-// --- prompt every 5 minutes while idle (no task, no break) ---
+// --- prompt every minute while idle (no task, no break) ---
 function reconcileIdlePrompt(): void {
   if (lastState.mode === "idle") {
     if (!idleTimer) {
@@ -120,14 +121,40 @@ function reconcileIdlePrompt(): void {
   }
 }
 
+/** Shake the window horizontally to grab attention. */
+function jitterWindow(win: BrowserWindow): void {
+  if (win.isDestroyed()) return;
+  const [baseX, baseY] = win.getPosition();
+  const offsets = [18, -18, 15, -15, 12, -12, 9, -9, 6, -6, 3, -3, 0];
+  let i = 0;
+  const step = () => {
+    if (win.isDestroyed()) return;
+    win.setPosition(baseX + offsets[i], baseY);
+    if (++i < offsets.length) setTimeout(step, 40);
+    else win.setPosition(baseX, baseY);
+  };
+  step();
+}
+
 function promptPickTask(): void {
-  showWindow();
-  mainWindow?.webContents.send("command", "open-picker");
-  if (process.platform === "win32") mainWindow?.flashFrame(true);
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  const win = mainWindow;
+  if (!win) return;
+  // Force it to the front, above other windows, without permanently pinning it.
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.setAlwaysOnTop(true);
+  win.focus();
+  win.moveTop();
+  win.webContents.send("command", "open-picker");
+  jitterWindow(win);
+  setTimeout(() => {
+    if (win && !win.isDestroyed()) win.setAlwaysOnTop(false);
+  }, 2500);
   if (Notification.isSupported()) {
     new Notification({
-      title: "Vibe Timer",
-      body: "You're not tracking anything — pick a task or start a break.",
+      title: "Vibe Timer — you're idle",
+      body: "Pick a task or start a break to keep tracking.",
     }).show();
   }
 }
@@ -175,10 +202,16 @@ if (!gotLock) {
     ipcMain.on("timer:state", (_e, state: TimerState) => {
       lastState = state;
       updateTrayStatus(state.label || "Idle");
+      reconcileIdlePrompt();
       sendToMini(state);
       reconcileMini();
-      reconcileIdlePrompt();
     });
+
+    // Track OS input activity and let the (authed) main window persist each sample.
+    startActivityTracking(
+      () => ({ mode: lastState.mode, taskId: lastState.taskId ?? null }),
+      (sample) => mainWindow?.webContents.send("activity:sample", sample)
+    );
 
     // Mini window controls.
     ipcMain.on("mini:ready", () => sendToMini(lastState));
@@ -210,6 +243,7 @@ if (!gotLock) {
 
   app.on("will-quit", () => {
     if (idleTimer) clearInterval(idleTimer);
+    stopActivityTracking();
     destroyMini();
     destroyTray();
   });

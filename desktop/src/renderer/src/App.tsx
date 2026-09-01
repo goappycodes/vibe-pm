@@ -156,6 +156,7 @@ export function App() {
           mode: "timer",
           label: `▶ ${fmtElapsed(sec)} · ${t?.title ?? "Task"}`,
           taskTitle: t?.title ?? "Task",
+          taskId: timer.taskId,
           startedAt: timer.startedAt,
         });
       } else {
@@ -175,6 +176,14 @@ export function App() {
       if (cmd === "stop") s.stopTimer();
       else if (cmd === "open-entries") setScreen("entries");
       else if (cmd === "open-picker") setScreen("main");
+    });
+  }, []);
+
+  // Persist OS activity samples the main process pushes (works while hidden too).
+  useEffect(() => {
+    if (!window.api?.onActivitySample) return;
+    return window.api.onActivitySample((s) => {
+      useStore.getState().recordActivity(s);
     });
   }, []);
 

@@ -10,8 +10,17 @@ export interface TimerState {
   mode: "timer" | "break" | "idle" | "inactive";
   label: string; // preformatted text for the tray/mini, e.g. "▶ 12:34 · Design"
   taskTitle?: string;
+  taskId?: string; // for activity attribution
   breakType?: string;
   startedAt?: number; // epoch ms, so the mini can tick its own clock
+}
+
+export interface ActivitySample {
+  date: string; // real local YYYY-MM-DD
+  minute: string; // real local HH:MM
+  activeSeconds: number; // 0..60 of computer input activity in this minute
+  taskId: string | null;
+  onBreak: boolean;
 }
 
 const api = {
@@ -47,6 +56,13 @@ const api = {
   getMiniEnabled: (): Promise<boolean> => ipcRenderer.invoke("mini:get"),
   setMiniEnabled: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke("mini:set", enabled),
+
+  // --- activity tracking: main samples input, main window persists it ---
+  onActivitySample: (cb: (s: ActivitySample) => void): (() => void) => {
+    const h = (_e: IpcRendererEvent, s: ActivitySample) => cb(s);
+    ipcRenderer.on("activity:sample", h);
+    return () => ipcRenderer.removeListener("activity:sample", h);
+  },
 };
 
 contextBridge.exposeInMainWorld("api", api);

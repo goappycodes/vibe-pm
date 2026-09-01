@@ -63,6 +63,13 @@ interface State {
   reloadData: () => Promise<void>;
   loadEntries: () => Promise<void>;
   addComment: (taskId: string, body: string) => Promise<boolean>;
+  recordActivity: (s: {
+    date: string;
+    minute: string;
+    activeSeconds: number;
+    taskId: string | null;
+    onBreak: boolean;
+  }) => void;
 
   taskById: (id: string | null | undefined) => Task | undefined;
 
@@ -295,6 +302,27 @@ export const useStore = create<State>((set, get) => ({
       return false;
     }
     return true;
+  },
+
+  recordActivity: (s) => {
+    const me = get().me;
+    if (!me) return;
+    // Deterministic id → upserts the same minute bucket in place.
+    const id = `as_${me.id}_${s.date}_${s.minute}`;
+    void supabase
+      .from("activity_samples")
+      .upsert({
+        id,
+        user_id: me.id,
+        date: s.date,
+        minute: s.minute,
+        active_seconds: Math.round(s.activeSeconds),
+        task_id: s.taskId,
+        on_break: s.onBreak,
+      })
+      .then(({ error }) => {
+        if (error) console.error("[activity] upsert:", error.message);
+      });
   },
 
   taskById: (id) => get().tasks.find((t) => t.id === id),

@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { authRequired, supabase } from "@/lib/supabase/client";
 import { cn, daysFromToday } from "@/lib/utils";
 import {
+  Activity,
   Building2,
   CalendarCheck2,
   Folder,
@@ -41,6 +42,9 @@ const MANAGE = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
+// Admin / team-lead only.
+const ACTIVITY_ITEM = { href: "/activity", label: "Activity", icon: Activity };
+
 export function Sidebar({
   theme,
   toggleTheme,
@@ -56,6 +60,9 @@ export function Sidebar({
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
   );
+  const isLead =
+    currentUser?.role === "admin" || currentUser?.role === "team_lead";
+  const manageItems = isLead ? [ACTIVITY_ITEM, ...MANAGE] : MANAGE;
   // My tasks that are due today or overdue — a nudge badge on My Day.
   const myUrgent = useStore((s) =>
     s.tasks.reduce((n, t) => {
@@ -132,7 +139,7 @@ export function Sidebar({
         <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-faint">
           Manage
         </div>
-        {MANAGE.map((item) => {
+        {manageItems.map((item) => {
           const active =
             pathname === item.href ||
             (item.href === "/team" && pathname.startsWith("/member")) ||
