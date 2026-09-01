@@ -33,12 +33,13 @@ Built with **Electron + electron-vite + React + zustand**.
    npm run db:breaks
    ```
 
-2. Add the web app's desktop-auth URL to **Supabase → Authentication → URL
-   Configuration → Redirect URLs**, e.g.
+2. The web app's desktop-auth URL must be in **Supabase → Authentication → URL
+   Configuration → Redirect URLs**. For this project these are **already
+   configured**:
 
    ```
    http://localhost:3000/desktop-auth
-   https://<your-deployed-web-app>/desktop-auth
+   https://vibe-pm-six.vercel.app/desktop-auth
    ```
 
    (The magic link returns to this page, which then hands the session to the app.)
@@ -60,7 +61,7 @@ npm run dev               # launch in development
 | `VITE_SUPABASE_URL`         | Supabase project URL (same as the web app)                    |
 | `VITE_SUPABASE_ANON_KEY`    | Supabase anon key (already public in the web app)             |
 | `VITE_APP_TODAY`            | Calendar date to read/write under. Defaults to `2026-08-26` to match the web app's frozen clock; set empty to use the real date. |
-| `MAIN_VITE_WEB_LOGIN_URL`   | Origin serving `/desktop-auth` (e.g. `http://localhost:3000`) |
+| `MAIN_VITE_WEB_LOGIN_URL`   | Origin serving `/desktop-auth` — deployed `https://vibe-pm-six.vercel.app` (no local server needed) or `http://localhost:3000` for dev |
 
 ## Build installers
 
