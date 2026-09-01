@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:setup": "node --env-file=.env.local scripts/db-setup.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/apply-migration.mjs",
+    "db:breaks": "node --env-file=.env.local scripts/apply-migration.mjs supabase/migrations/0001_breaks.sql",
     "db:time-logs": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/add-time-logs.mjs"
   },
   "dependencies": {

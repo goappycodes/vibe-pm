@@ -1,0 +1,41 @@
+{
+  "name": "vibe-timer-desktop",
+  "productName": "Vibe Timer",
+  "version": "0.1.0",
+  "description": "Desktop time-tracking companion for Vibe PM — browser sign-in, forced task selection, break tracking.",
+  "author": "Appycodes",
+  "private": true,
+  "main": "./out/main/index.js",
+  "scripts": {
+    "icons": "node scripts/gen-icon.mjs",
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "prebuild:app": "node scripts/gen-icon.mjs",
+    "build:app": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "lucide-react": "^0.454.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^32.1.2",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8"
+  }
+}

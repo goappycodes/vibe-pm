@@ -5,6 +5,7 @@
 drop table if exists attachments cascade;
 drop table if exists comments cascade;
 drop table if exists activity_log cascade;
+drop table if exists breaks cascade;
 drop table if exists time_logs cascade;
 drop table if exists day_selections cascade;
 drop table if exists updates cascade;
@@ -118,6 +119,22 @@ create index time_logs_user_date_idx on time_logs(user_id, date);
 create index time_logs_date_idx on time_logs(date);
 create index time_logs_project_idx on time_logs(project_id);
 
+-- Breaks: recorded mainly by the desktop timer app. Kept separate from time_logs
+-- so break time is never counted as billable work.
+create table breaks (
+  id text primary key,
+  user_id text references team_members(id) on delete cascade,
+  date date not null,
+  start_time text not null default '00:00',
+  end_time text not null default '00:00',
+  minutes integer not null default 0,
+  type text not null default 'short' check (type in ('short','lunch','other')),
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+create index breaks_user_date_idx on breaks(user_id, date);
+create index breaks_date_idx on breaks(date);
+
 create table activity_log (
   id text primary key,
   task_id text references tasks(id) on delete cascade,
@@ -166,7 +183,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','day_selections','time_logs','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','time_logs','breaks','activity_log','comments','attachments','app_settings'
   ] loop
     execute format('alter table %I enable row level security;', t);
     execute format('drop policy if exists %I on %I;', t||'_anon_all', t);
@@ -183,7 +200,7 @@ declare t text;
 begin
   foreach t in array array[
     'team_members','clients','projects','tasks','task_dependencies',
-    'updates','day_selections','time_logs','activity_log','comments','attachments','app_settings'
+    'updates','day_selections','time_logs','breaks','activity_log','comments','attachments','app_settings'
   ] loop
     begin
       execute format('alter publication supabase_realtime add table %I;', t);

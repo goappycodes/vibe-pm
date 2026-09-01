@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { authRequired, supabase } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { DayPlanBanner } from "./DayPlanBanner";
@@ -18,6 +19,7 @@ import { Topbar } from "./Topbar";
 type Theme = "light" | "dark";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [theme, setTheme] = useState<Theme>("light");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const setCommandOpen = useStore((s) => s.setCommandOpen);
@@ -141,6 +143,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
   }, [detailTaskId]);
+
+  // The desktop timer app's login bridge renders standalone — no sidebar, and it
+  // manages its own auth (it must control the magic-link redirect to preserve the
+  // loopback ?port=&state=). Keep it outside the app-shell gate entirely.
+  if (pathname?.startsWith("/desktop-auth")) {
+    return <>{children}</>;
+  }
 
   if (authRequired && session === undefined) {
     return (

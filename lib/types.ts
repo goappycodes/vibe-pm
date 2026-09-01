@@ -268,3 +268,22 @@ export interface TimeLog {
   note: string;
   created_at: string;
 }
+
+export type BreakType = "short" | "lunch" | "other";
+
+/**
+ * A break someone recorded (mostly from the desktop timer app). Structurally
+ * like a TimeLog but with no task/project — kept in its own table so break time
+ * never gets counted as billable work.
+ */
+export interface Break {
+  id: string;
+  user_id: string;
+  date: string; // ISO date
+  start_time: string; // "HH:MM", 24h
+  end_time: string; // "HH:MM", 24h
+  minutes: number;
+  type: BreakType;
+  note: string;
+  created_at: string;
+}

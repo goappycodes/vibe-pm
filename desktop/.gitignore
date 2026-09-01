@@ -1,0 +1,10 @@
+node_modules
+out
+release
+build/icon.png
+resources/icon.png
+resources/tray.png
+.env
+.env.local
+*.log
+.DS_Store
