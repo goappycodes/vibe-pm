@@ -12,7 +12,8 @@ import {
 } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { addDays, cn, TODAY, toISODate } from "@/lib/utils";
-import { Check, Hash, X } from "lucide-react";
+import { Check, Hash, Search, X } from "lucide-react";
+import { useState } from "react";
 import { MenuItem, Popover } from "./Popover";
 import { Avatar } from "./Avatar";
 import { DueBadge, ProjectBadge, StatusBadge, UrgencyBadge } from "./Badges";
@@ -40,6 +41,51 @@ function TriggerButton({
     >
       {children}
     </button>
+  );
+}
+
+/** A dropdown body with a filter box at the top for long lists. */
+function SearchMenu<T>({
+  items,
+  filter,
+  renderItem,
+  placeholder,
+  pinned,
+}: {
+  items: T[];
+  filter: (item: T, q: string) => boolean;
+  renderItem: (item: T) => React.ReactNode;
+  placeholder: string;
+  pinned?: React.ReactNode;
+}) {
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const shown = query ? items.filter((i) => filter(i, query)) : items;
+  return (
+    <div className="py-1">
+      <div className="px-1.5 pb-1">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            placeholder={placeholder}
+            className="input py-1 pl-7 text-xs"
+          />
+        </div>
+      </div>
+      <div className="max-h-60 overflow-y-auto">
+        {!query && pinned}
+        {shown.map(renderItem)}
+        {shown.length === 0 && (
+          <div className="px-2.5 py-3 text-center text-xs text-faint">
+            No matches
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -146,20 +192,28 @@ export function AssigneePicker({
       )}
     >
       {(close) => (
-        <div className="max-h-72 overflow-y-auto py-1">
-          <MenuItem
-            active={value === null}
-            onClick={() => {
-              onChange(null);
-              close();
-            }}
-          >
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-faint">
-              <X className="h-3 w-3" />
-            </span>
-            <span className="flex-1 text-muted">Unassigned</span>
-          </MenuItem>
-          {members.map((m) => (
+        <SearchMenu
+          items={members}
+          placeholder="Search people…"
+          filter={(m, q) =>
+            m.name.toLowerCase().includes(q) ||
+            m.email.toLowerCase().includes(q)
+          }
+          pinned={
+            <MenuItem
+              active={value === null}
+              onClick={() => {
+                onChange(null);
+                close();
+              }}
+            >
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-faint">
+                <X className="h-3 w-3" />
+              </span>
+              <span className="flex-1 text-muted">Unassigned</span>
+            </MenuItem>
+          }
+          renderItem={(m) => (
             <MenuItem
               key={m.id}
               active={m.id === value}
@@ -172,8 +226,8 @@ export function AssigneePicker({
               <span className="flex-1">{m.name}</span>
               {m.id === value && <Check className="h-3.5 w-3.5 text-accent" />}
             </MenuItem>
-          ))}
-        </div>
+          )}
+        />
       )}
     </Popover>
   );
@@ -198,8 +252,11 @@ export function ProjectPicker({
       )}
     >
       {(close) => (
-        <div className="max-h-72 overflow-y-auto py-1">
-          {projects.map((p) => (
+        <SearchMenu
+          items={projects}
+          placeholder="Search projects…"
+          filter={(p, q) => p.name.toLowerCase().includes(q)}
+          renderItem={(p) => (
             <MenuItem
               key={p.id}
               active={p.id === value}
@@ -213,8 +270,8 @@ export function ProjectPicker({
               </span>
               {p.id === value && <Check className="h-3.5 w-3.5 text-accent" />}
             </MenuItem>
-          ))}
-        </div>
+          )}
+        />
       )}
     </Popover>
   );
@@ -304,18 +361,23 @@ export function ClientPicker({
       )}
     >
       {(close) => (
-        <div className="max-h-72 overflow-y-auto py-1">
-          <MenuItem
-            active={value === null}
-            onClick={() => {
-              onChange(null);
-              close();
-            }}
-          >
-            <span className="h-2 w-2 rounded-full bg-faint" />
-            <span className="flex-1 text-muted">Internal (no client)</span>
-          </MenuItem>
-          {clients.map((c) => (
+        <SearchMenu
+          items={clients}
+          placeholder="Search clients…"
+          filter={(c, q) => c.name.toLowerCase().includes(q)}
+          pinned={
+            <MenuItem
+              active={value === null}
+              onClick={() => {
+                onChange(null);
+                close();
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-faint" />
+              <span className="flex-1 text-muted">Internal (no client)</span>
+            </MenuItem>
+          }
+          renderItem={(c) => (
             <MenuItem
               key={c.id}
               active={c.id === value}
@@ -333,8 +395,8 @@ export function ClientPicker({
               <span className="flex-1 truncate">{c.name}</span>
               {c.id === value && <Check className="h-3.5 w-3.5 text-accent" />}
             </MenuItem>
-          ))}
-        </div>
+          )}
+        />
       )}
     </Popover>
   );
@@ -366,41 +428,48 @@ export function SlackChannelPicker({
       )}
     >
       {(close) => (
-        <div className="max-h-72 overflow-y-auto py-1">
+        <>
           {!connected && (
-            <div className="px-2.5 py-2 text-xs text-amber-600">
+            <div className="px-2.5 pt-2 text-xs text-amber-600">
               Slack isn&apos;t connected. Connect it in Settings.
             </div>
           )}
-          <MenuItem
-            active={!value}
-            onClick={() => {
-              onChange(null);
-              close();
-            }}
-          >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-faint">
-              <X className="h-3 w-3" />
-            </span>
-            <span className="flex-1 text-muted">No channel</span>
-          </MenuItem>
-          {channels.map((ch) => (
-            <MenuItem
-              key={ch.id}
-              active={ch.name === value}
-              onClick={() => {
-                onChange(ch.name);
-                close();
-              }}
-            >
-              <Hash className="h-3.5 w-3.5 text-faint" />
-              <span className="flex-1 truncate">{ch.name}</span>
-              {ch.name === value && (
-                <Check className="h-3.5 w-3.5 text-accent" />
-              )}
-            </MenuItem>
-          ))}
-        </div>
+          <SearchMenu
+            items={channels}
+            placeholder="Search channels…"
+            filter={(ch, q) => ch.name.toLowerCase().includes(q)}
+            pinned={
+              <MenuItem
+                active={!value}
+                onClick={() => {
+                  onChange(null);
+                  close();
+                }}
+              >
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-faint">
+                  <X className="h-3 w-3" />
+                </span>
+                <span className="flex-1 text-muted">No channel</span>
+              </MenuItem>
+            }
+            renderItem={(ch) => (
+              <MenuItem
+                key={ch.id}
+                active={ch.name === value}
+                onClick={() => {
+                  onChange(ch.name);
+                  close();
+                }}
+              >
+                <Hash className="h-3.5 w-3.5 text-faint" />
+                <span className="flex-1 truncate">{ch.name}</span>
+                {ch.name === value && (
+                  <Check className="h-3.5 w-3.5 text-accent" />
+                )}
+              </MenuItem>
+            )}
+          />
+        </>
       )}
     </Popover>
   );

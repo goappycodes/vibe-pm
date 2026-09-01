@@ -36,7 +36,12 @@ export function ActivityApprovals({
     tasks.find((t) => t.id === id)?.title ?? "—";
 
   const load = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      // No backend (demo mode) — nothing to load; show the empty state.
+      setRequests([]);
+      onCount?.(0);
+      return;
+    }
     const { data } = await supabase
       .from("time_log_change_requests")
       .select("*")

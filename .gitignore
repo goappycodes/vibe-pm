@@ -23,6 +23,8 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+*.bak
+.env.local.bak
 
 # local one-off scripts (may contain real data — never commit)
 *.local.mjs

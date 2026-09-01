@@ -26,7 +26,13 @@ export function ActivityTeam({
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
-    if (!date || !supabase) return;
+    if (!date) return;
+    if (!supabase) {
+      // No backend (demo mode) — nothing to fetch; show the empty state
+      // instead of spinning forever.
+      setRows([]);
+      return;
+    }
     let cancelled = false;
     setRows(null);
     (async () => {

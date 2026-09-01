@@ -1,0 +1,57 @@
+name: Desktop release
+
+# Builds the Vibe Timer desktop app for Windows, macOS, and Linux on native
+# runners. Push a tag like `v0.1.0` to build AND publish a GitHub Release (which
+# electron-updater then auto-updates from). Or run manually (workflow_dispatch)
+# to just build downloadable artifacts.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - run: npm ci
+      - run: npm run icons
+      - run: npm run build
+
+      - name: Package (and publish on tags)
+        run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
+        env:
+          # electron-builder's GitHub provider uses this to create the release.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS signing/notarization (optional — set as repo secrets to enable):
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload build artifacts (non-tag runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibe-timer-${{ matrix.os }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+          if-no-files-found: ignore
