@@ -12,20 +12,45 @@ export function getMini(): BrowserWindow | null {
   return mini && !mini.isDestroyed() ? mini : null;
 }
 
+/**
+ * Whether a saved position still lands on a connected display. Guards against
+ * restoring the window off-screen after a monitor is unplugged or the
+ * resolution changes — otherwise the mini timer becomes invisible/unreachable.
+ */
+function boundsOnScreen(x: number, y: number): boolean {
+  return screen.getAllDisplays().some((d) => {
+    const wa = d.workArea;
+    const overlapX =
+      Math.min(x + WIDTH, wa.x + wa.width) - Math.max(x, wa.x);
+    const overlapY =
+      Math.min(y + HEIGHT, wa.y + wa.height) - Math.max(y, wa.y);
+    return overlapX > 20 && overlapY > 20;
+  });
+}
+
+function defaultPosition(): { x: number; y: number } {
+  const wa = screen.getPrimaryDisplay().workArea;
+  return {
+    x: wa.x + wa.width - WIDTH - 16,
+    y: wa.y + wa.height - HEIGHT - 16,
+  };
+}
+
 /** Create the always-on-top mini timer window (hidden until shown). */
 export function createMini(
   settings: Settings,
   onMoved: (b: Rectangle) => void
 ): BrowserWindow {
-  let x: number | undefined;
-  let y: number | undefined;
-  if (settings.miniBounds) {
+  let x: number;
+  let y: number;
+  if (
+    settings.miniBounds &&
+    boundsOnScreen(settings.miniBounds.x, settings.miniBounds.y)
+  ) {
     x = settings.miniBounds.x;
     y = settings.miniBounds.y;
   } else {
-    const wa = screen.getPrimaryDisplay().workArea;
-    x = wa.x + wa.width - WIDTH - 16;
-    y = wa.y + wa.height - HEIGHT - 16;
+    ({ x, y } = defaultPosition());
   }
 
   mini = new BrowserWindow({
