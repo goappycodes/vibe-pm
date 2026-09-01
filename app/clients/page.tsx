@@ -5,16 +5,18 @@ import { ProjectBadge } from "@/components/Badges";
 import { MenuItem, Popover } from "@/components/Popover";
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS, type Client } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import {
   Building2,
   Check,
+  Clock,
   Lock,
   Mail,
   Plus,
   Trash2,
   User,
 } from "lucide-react";
+import { useMemo } from "react";
 
 export default function ClientsPage() {
   const clients = useStore((s) => s.clients);
@@ -72,6 +74,14 @@ function ClientCard({
   const projects = useStore((s) =>
     s.projects.filter((p) => p.client_id === client.id)
   );
+  const timeLogs = useStore((s) => s.timeLogs);
+  // Total time logged across all of this client's projects (billing view).
+  const loggedMinutes = useMemo(() => {
+    const ids = new Set(projects.map((p) => p.id));
+    return timeLogs
+      .filter((l) => l.project_id && ids.has(l.project_id))
+      .reduce((sum, l) => sum + l.minutes, 0);
+  }, [timeLogs, projects]);
   const c = PROJECT_COLORS[client.color] ?? PROJECT_COLORS.sky;
 
   return (
@@ -168,6 +178,15 @@ function ClientCard({
         ))}
         {projects.length === 0 && (
           <span className="text-xs text-faint">none assigned yet</span>
+        )}
+        {loggedMinutes > 0 && (
+          <span
+            className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted"
+            title="Time logged across this client's projects"
+          >
+            <Clock className="h-3.5 w-3.5 text-faint" />
+            {formatDuration(loggedMinutes)} logged
+          </span>
         )}
       </div>
     </div>
