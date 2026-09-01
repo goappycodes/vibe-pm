@@ -51,6 +51,7 @@ export default function TimelinePage() {
   const dependencies = useStore((s) => s.dependencies);
   const members = useStore((s) => s.members);
   const openDetail = useStore((s) => s.openDetail);
+  const runningTaskId = useStore((s) => s.runningTimer?.taskId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayWRef = useRef(BASE_DAY_W);
@@ -478,6 +479,12 @@ export default function TimelinePage() {
                               STATUS_META[t.status].dot
                             )}
                           />
+                          {runningTaskId === t.id && (
+                            <span
+                              className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+                              title="Timer running"
+                            />
+                          )}
                           <button
                             onClick={() => openDetail(t.id)}
                             className={cn(
