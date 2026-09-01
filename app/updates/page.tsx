@@ -82,6 +82,26 @@ export default function UpdatesPage() {
     [tasks, currentUserId]
   );
 
+  // Managers see who (among people with open work) hasn't posted a standup today.
+  const isManager =
+    currentUser?.role === "admin" || currentUser?.role === "team_lead";
+  const activeMembers = useMemo(() => {
+    const active = new Set(
+      tasks
+        .filter((t) => t.status !== "done" && t.assignee_id)
+        .map((t) => t.assignee_id)
+    );
+    return members.filter((m) => active.has(m.id));
+  }, [tasks, members]);
+  const notPostedToday = useMemo(() => {
+    const posted = new Set(
+      updates
+        .filter((u) => u.created_at.slice(0, 10) === plan.today)
+        .map((u) => u.author_id)
+    );
+    return activeMembers.filter((m) => !posted.has(m.id));
+  }, [updates, activeMembers, plan.today]);
+
   const appendTask = (
     setter: React.Dispatch<React.SetStateAction<string>>,
     title: string
@@ -267,6 +287,40 @@ export default function UpdatesPage() {
             </button>
           </div>
         </div>
+
+        {/* manager view: who with open work hasn't posted today */}
+        {isManager && activeMembers.length > 0 && (
+          <div className="card mt-6 p-3">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+                Today&apos;s standups
+              </span>
+              <span className="text-xs text-muted">
+                {activeMembers.length - notPostedToday.length} of{" "}
+                {activeMembers.length} posted
+              </span>
+            </div>
+            {notPostedToday.length === 0 ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                Everyone with open work has posted today.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {notPostedToday.map((m) => (
+                  <Link
+                    key={m.id}
+                    href={`/member/${m.id}`}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1 pl-1 pr-2.5 text-xs text-muted transition-colors hover:text-fg"
+                    title={`${m.name} hasn't posted today`}
+                  >
+                    <Avatar member={m} size="xs" />
+                    {m.name.split(" ")[0]}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* feed */}
         <div className="mt-6 space-y-6">
