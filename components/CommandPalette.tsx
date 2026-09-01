@@ -4,13 +4,18 @@ import { useStore } from "@/lib/store";
 import { STATUS_META } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
+  Building2,
   CalendarCheck2,
   CornerDownLeft,
   Folder,
   GanttChartSquare,
+  Gauge,
   KanbanSquare,
+  MessageSquare,
   Plus,
   Search,
+  Settings,
+  Square,
   Table2,
   Timer,
   UserPlus,
@@ -39,6 +44,8 @@ export function CommandPalette() {
   const addTask = useStore((s) => s.addTask);
   const addProject = useStore((s) => s.addProject);
   const addMember = useStore((s) => s.addMember);
+  const runningTimer = useStore((s) => s.runningTimer);
+  const stopTimer = useStore((s) => s.stopTimer);
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -95,6 +102,60 @@ export function CommandPalette() {
         group: "Navigate",
         run: () => router.push("/time-log"),
       },
+      {
+        id: "nav-updates",
+        label: "Go to Updates",
+        icon: <MessageSquare className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/updates"),
+      },
+      {
+        id: "nav-projects",
+        label: "Go to Projects",
+        icon: <Folder className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/projects"),
+      },
+      {
+        id: "nav-clients",
+        label: "Go to Clients",
+        icon: <Building2 className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/clients"),
+      },
+      {
+        id: "nav-team",
+        label: "Go to Team",
+        icon: <Users2 className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/team"),
+      },
+      {
+        id: "nav-velocity",
+        label: "Go to Velocity",
+        icon: <Gauge className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/velocity"),
+      },
+      {
+        id: "nav-settings",
+        label: "Go to Settings",
+        icon: <Settings className="h-4 w-4" />,
+        group: "Navigate",
+        run: () => router.push("/settings"),
+      },
+      ...(runningTimer
+        ? [
+            {
+              id: "stop-timer",
+              label: "Stop timer",
+              hint: "log this time",
+              icon: <Square className="h-3.5 w-3.5" />,
+              group: "Actions",
+              run: () => stopTimer(),
+            } as CmdItem,
+          ]
+        : []),
       {
         id: "new-task",
         label: "Create new task",
@@ -197,6 +258,8 @@ export function CommandPalette() {
     addProject,
     addMember,
     openDetail,
+    runningTimer,
+    stopTimer,
   ]);
 
   useEffect(() => {
