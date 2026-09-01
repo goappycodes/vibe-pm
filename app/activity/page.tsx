@@ -7,9 +7,20 @@ import { Avatar } from "@/components/Avatar";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
 import type { Break, TimeLog } from "@/lib/types";
-import { cn, TODAY, toISODate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+// The Activity dashboard shows LIVE time-tracking data (time_logs, breaks,
+// activity_samples) which the desktop app writes under the real calendar date.
+// So it defaults to the real "today" — deliberately NOT the frozen demo TODAY
+// used by the seeded task views (My Day, Board, Time Log). Don't swap this for
+// TODAY: it would default the dashboard to a day that never has tracked data.
+function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 type Mode = "team" | "person" | "approvals";
 
@@ -29,7 +40,7 @@ export default function ActivityPage() {
 
   const [mode, setMode] = useState<Mode>("team");
   const [userId, setUserId] = useState<string>("");
-  const [date, setDate] = useState<string>(() => toISODate(TODAY));
+  const [date, setDate] = useState<string>(() => todayISO());
   const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(0);
