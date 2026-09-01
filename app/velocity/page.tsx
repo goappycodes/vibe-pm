@@ -3,7 +3,7 @@
 import { Avatar } from "@/components/Avatar";
 import { useStore } from "@/lib/store";
 import { ROLE_META, type Task, type TeamMember } from "@/lib/types";
-import { addDays, cn, parseDate, TODAY } from "@/lib/utils";
+import { addDays, cn, formatDuration, parseDate, TODAY, toISODate } from "@/lib/utils";
 import { Gauge, TrendingUp, Layers, Clock } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -21,15 +21,24 @@ interface Row {
   weeksToClear: number | null; // allocated / velocity
   openCount: number;
   doneCount: number;
+  loggedMinutes: number; // time logged in the last window
 }
 
 export default function VelocityPage() {
   const tasks = useStore((s) => s.tasks);
   const members = useStore((s) => s.members);
+  const timeLogs = useStore((s) => s.timeLogs);
 
   const since = addDays(TODAY, -WINDOW_DAYS);
 
   const rows = useMemo<Row[]>(() => {
+    const sinceStr = toISODate(since);
+    const minutesByUser = new Map<string, number>();
+    for (const l of timeLogs) {
+      if (l.date >= sinceStr) {
+        minutesByUser.set(l.user_id, (minutesByUser.get(l.user_id) ?? 0) + l.minutes);
+      }
+    }
     return members
       .map((member) => {
         const mine = tasks.filter((t) => t.assignee_id === member.id);
@@ -51,11 +60,12 @@ export default function VelocityPage() {
             velocity > 0 ? allocated / velocity : allocated > 0 ? null : 0,
           openCount: open.length,
           doneCount: done.length,
+          loggedMinutes: minutesByUser.get(member.id) ?? 0,
         };
       })
       .filter((r) => r.allocated > 0 || r.completedTotal > 0)
       .sort((a, b) => b.velocity - a.velocity || b.allocated - a.allocated);
-  }, [tasks, members, since]);
+  }, [tasks, members, timeLogs, since]);
 
   const maxBar = Math.max(1, ...rows.map((r) => Math.max(r.velocity, r.allocated)));
   const teamVelocity = rows.reduce((a, r) => a + r.velocity, 0);
@@ -118,11 +128,12 @@ export default function VelocityPage() {
 
         {/* rows */}
         <div className="card divide-y divide-border overflow-hidden">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_64px_64px_88px] items-center gap-3 bg-surface-2/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_64px_64px_72px_88px] items-center gap-3 bg-surface-2/60 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
             <span>Member</span>
             <span>Throughput vs load</span>
             <span className="text-right">Vel.</span>
             <span className="text-right">Alloc.</span>
+            <span className="text-right">Hours</span>
             <span className="text-right">Runway</span>
           </div>
           {rows.map((r) => (
@@ -160,7 +171,7 @@ function VelocityRow({ row, maxBar }: { row: Row; maxBar: number }) {
   return (
     <Link
       href={`/member/${member.id}`}
-      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_64px_64px_88px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface"
+      className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_64px_64px_72px_88px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface"
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <Avatar member={member} size="sm" />
@@ -196,6 +207,9 @@ function VelocityRow({ row, maxBar }: { row: Row; maxBar: number }) {
       </div>
       <div className="text-right text-sm tabular-nums text-fg">
         {row.allocated}
+      </div>
+      <div className="text-right text-sm tabular-nums text-muted">
+        {row.loggedMinutes > 0 ? formatDuration(row.loggedMinutes) : "—"}
       </div>
       <div
         className={cn(
