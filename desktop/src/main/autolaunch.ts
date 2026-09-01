@@ -15,31 +15,41 @@ export function isAutoLaunchEnabled(): boolean {
 
 export function setAutoLaunch(enabled: boolean): void {
   if (process.platform === "linux") {
-    if (enabled) {
-      mkdirSync(LINUX_AUTOSTART_DIR, { recursive: true });
-      const exec = process.execPath;
-      writeFileSync(
-        LINUX_DESKTOP_FILE,
-        [
-          "[Desktop Entry]",
-          "Type=Application",
-          "Name=Vibe Timer",
-          `Exec=${exec}`,
-          "Terminal=false",
-          "X-GNOME-Autostart-enabled=true",
-          "Hidden=false",
-          "",
-        ].join("\n")
-      );
-    } else if (existsSync(LINUX_DESKTOP_FILE)) {
-      rmSync(LINUX_DESKTOP_FILE);
+    try {
+      if (enabled) {
+        mkdirSync(LINUX_AUTOSTART_DIR, { recursive: true });
+        const exec = process.execPath;
+        writeFileSync(
+          LINUX_DESKTOP_FILE,
+          [
+            "[Desktop Entry]",
+            "Type=Application",
+            "Name=Vibe Timer",
+            `Exec=${exec}`,
+            "Terminal=false",
+            "X-GNOME-Autostart-enabled=true",
+            "Hidden=false",
+            "",
+          ].join("\n")
+        );
+      } else if (existsSync(LINUX_DESKTOP_FILE)) {
+        rmSync(LINUX_DESKTOP_FILE);
+      }
+    } catch (e) {
+      // Unwritable ~/.config etc. — log and carry on so the IPC toggle
+      // never rejects across the bridge.
+      console.error("[autolaunch] linux autostart update failed:", e);
     }
     return;
   }
 
-  app.setLoginItemSettings({
-    openAtLogin: enabled,
-    // On macOS, launch straight into the tray without stealing a window at boot.
-    openAsHidden: false,
-  });
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      // On macOS, launch straight into the tray without stealing a window at boot.
+      openAsHidden: false,
+    });
+  } catch (e) {
+    console.error("[autolaunch] setLoginItemSettings failed:", e);
+  }
 }
