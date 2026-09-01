@@ -37,13 +37,13 @@ jobs:
       - run: npm run build
 
       - name: Package (and publish on tags)
+        # Builds unsigned. To sign, add CSC_LINK + CSC_KEY_PASSWORD as repo
+        # secrets and reference them here (an EMPTY CSC_LINK breaks the build, so
+        # only set it when a real cert exists).
         run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/') && 'always' || 'never' }}
         env:
           # electron-builder's GitHub provider uses this to create the release.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS signing/notarization (optional — set as repo secrets to enable):
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Upload build artifacts (non-tag runs)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
