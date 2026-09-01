@@ -14,7 +14,7 @@ import {
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS, type Project } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
-import { ArrowUpRight, Folder, Lock, Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Folder, Github, Lock, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -174,8 +174,27 @@ function ProjectCard({
           {openTasks} open · {totalTasks} total{" "}
           {totalTasks === 1 ? "task" : "tasks"}
         </span>
+        {project.git_repo_url && (
+          <a
+            href={project.git_repo_url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex min-w-0 items-center gap-1 transition-colors hover:text-fg"
+            title={project.git_repo_url}
+          >
+            <Github className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">
+              {project.git_repo_url
+                .replace(/^https?:\/\/(www\.)?github\.com\//i, "")
+                .replace(/\/$/, "")}
+            </span>
+          </a>
+        )}
         {project.target_date && (
-          <span className="ml-auto">Target {formatDate(project.target_date)}</span>
+          <span className="ml-auto shrink-0">
+            Target {formatDate(project.target_date)}
+          </span>
         )}
       </div>
     </div>
