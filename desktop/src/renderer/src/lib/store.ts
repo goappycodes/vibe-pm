@@ -10,7 +10,7 @@ import {
   splitInterval,
   todayISO,
 } from "./time";
-import { BREAK_LABEL, type BreakType, type Project, type Task, type TeamMember, type TimeEntry } from "./types";
+import { BREAK_LABEL, type BreakType, type Project, type Status, type Task, type TeamMember, type TimeEntry } from "./types";
 
 export interface RunningTimer {
   taskId: string;
@@ -91,6 +91,8 @@ interface State {
   // Create a task (assigned to me) and add it to the pickable list. Returns the
   // new task id, or null on failure.
   addTask: (input: { title: string; projectId: string }) => Promise<string | null>;
+  // Change a task's status (e.g. mark done). Writes tasks + an activity_log row.
+  setTaskStatus: (taskId: string, status: Status) => Promise<void>;
 
   startTimer: (taskId: string) => void;
   stopTimer: () => void; // logs the worked segment
@@ -438,6 +440,46 @@ export const useStore = create<State>((set, get) => ({
     };
     set({ tasks: [task, ...get().tasks] });
     return id;
+  },
+
+  setTaskStatus: async (taskId, status) => {
+    const me = get().me;
+    const task = get().tasks.find((t) => t.id === taskId);
+    if (!task || task.status === status) return;
+    const from = task.status;
+    const now = new Date().toISOString();
+    // Optimistic: a done task leaves the open list; others update in place.
+    set((s) => ({
+      tasks:
+        status === "done"
+          ? s.tasks.filter((t) => t.id !== taskId)
+          : s.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)),
+    }));
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status,
+        completed_at: status === "done" ? now : null,
+        updated_at: now,
+      })
+      .eq("id", taskId);
+    if (error) {
+      console.error("[tasks] status:", error.message);
+      return;
+    }
+    // Mirror the web app's activity trail so status changes show up there too.
+    if (me) {
+      void supabase.from("activity_log").insert({
+        id: genId("a"),
+        task_id: taskId,
+        actor_id: me.id,
+        field: "status",
+        from,
+        to: status,
+        source: "ui",
+        at: now,
+      });
+    }
   },
 
   startTimer: (taskId) => {

@@ -1,8 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Coffee, Loader2, MessageSquarePlus, RefreshCw, Square } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Coffee,
+  Loader2,
+  MessageSquarePlus,
+  RefreshCw,
+  Square,
+} from "lucide-react";
 import { useStore } from "../lib/store";
 import { fmtElapsed } from "../lib/time";
-import { BREAK_LABEL, type BreakType } from "../lib/types";
+import {
+  BREAK_LABEL,
+  STATUS_DOT,
+  STATUS_LABEL,
+  STATUS_ORDER,
+  type BreakType,
+  type Status,
+} from "../lib/types";
 
 const BREAK_TYPES: BreakType[] = ["short", "lunch", "other"];
 
@@ -93,9 +108,11 @@ export function TimerView() {
   const stopTimer = useStore((s) => s.stopTimer);
   const switchTask = useStore((s) => s.switchTask);
   const startBreak = useStore((s) => s.startBreak);
+  const setTaskStatus = useStore((s) => s.setTaskStatus);
 
   const [now, setNow] = useState(() => Date.now());
   const [choosing, setChoosing] = useState(false);
+  const [choosingStatus, setChoosingStatus] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -105,16 +122,82 @@ export function TimerView() {
   if (!timer) return null;
   const elapsed = Math.max(0, Math.floor((now - timer.startedAt) / 1000));
 
+  const changeStatus = (s: Status) => {
+    const id = timer.taskId;
+    setChoosingStatus(false);
+    if (s === "done") {
+      // Completing the task logs the work and returns to the picker.
+      stopTimer();
+      void setTaskStatus(id, "done");
+    } else {
+      void setTaskStatus(id, s);
+    }
+  };
+
   return (
     <div className="screen">
       <div className="timerwrap">
         <div className="now-label">Working on</div>
         <div className="now-task">{task?.title ?? "Task"}</div>
         {project && <div className="faint small">{project.name}</div>}
+        {task && (
+          <button
+            className="status-chip"
+            onClick={() => {
+              setChoosing(false);
+              setChoosingStatus(true);
+            }}
+            title="Change status"
+          >
+            <span
+              className="sdot"
+              style={{ background: STATUS_DOT[task.status] }}
+            />
+            {STATUS_LABEL[task.status]}
+          </button>
+        )}
         <div className="clock">{fmtElapsed(elapsed)}</div>
       </div>
 
-      {choosing ? (
+      {choosingStatus ? (
+        <div className="actions">
+          <div className="section-label" style={{ textAlign: "center" }}>
+            Set status
+          </div>
+          <div className="chooser">
+            {STATUS_ORDER.map((s) =>
+              s === "done" ? (
+                <button
+                  key={s}
+                  className="btn btn-primary btn-block"
+                  onClick={() => changeStatus(s)}
+                >
+                  <CheckCircle2 className="icon" /> Complete &amp; stop
+                </button>
+              ) : (
+                <button
+                  key={s}
+                  className="btn btn-block"
+                  onClick={() => changeStatus(s)}
+                  disabled={task?.status === s}
+                >
+                  <span className="sdot" style={{ background: STATUS_DOT[s] }} />
+                  {STATUS_LABEL[s]}
+                  {task?.status === s && (
+                    <Check className="icon" style={{ marginLeft: "auto" }} />
+                  )}
+                </button>
+              )
+            )}
+            <button
+              className="btn btn-ghost btn-block"
+              onClick={() => setChoosingStatus(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : choosing ? (
         <div className="actions">
           <div className="section-label" style={{ textAlign: "center" }}>
             Start a break
@@ -153,6 +236,12 @@ export function TimerView() {
               <Coffee className="icon" /> Break
             </button>
           </div>
+          <button
+            className="btn btn-done btn-block"
+            onClick={() => changeStatus("done")}
+          >
+            <CheckCircle2 className="icon" /> Mark complete
+          </button>
           <CommentBox taskId={timer.taskId} />
         </div>
       )}

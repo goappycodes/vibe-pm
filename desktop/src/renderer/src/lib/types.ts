@@ -9,6 +9,32 @@ export type Status =
   | "in_review"
   | "done";
 
+export const STATUS_ORDER: Status[] = [
+  "todo",
+  "in_progress",
+  "in_review",
+  "blocked",
+  "done",
+];
+
+export const STATUS_LABEL: Record<Status, string> = {
+  backlog: "Backlog",
+  todo: "To do",
+  in_progress: "In progress",
+  blocked: "Blocked",
+  in_review: "In review",
+  done: "Done",
+};
+
+export const STATUS_DOT: Record<Status, string> = {
+  backlog: "#9ca3af",
+  todo: "#94a3b8",
+  in_progress: "#f59e0b",
+  blocked: "#f43f5e",
+  in_review: "#8b5cf6",
+  done: "#10b981",
+};
+
 export type Urgency = "low" | "medium" | "high" | "urgent";
 
 export type Role = "admin" | "team_lead" | "member";

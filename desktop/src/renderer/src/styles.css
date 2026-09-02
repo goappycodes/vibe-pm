@@ -387,6 +387,42 @@ h2 {
   padding-top: 8px;
 }
 
+/* status chip + chooser dots */
+.status-chip {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.status-chip:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+.sdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: none;
+}
+.btn-done {
+  color: var(--accent);
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+}
+.btn-done:hover {
+  background: rgba(16, 185, 129, 0.16);
+}
+
 /* break chooser */
 .chooser {
   display: flex;
