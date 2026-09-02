@@ -13,7 +13,7 @@ Get the files from the project's **GitHub Releases** page (latest = `v0.1.1`):
 | Your system | Download | How to run |
 | --- | --- | --- |
 | **Windows** (10/11) | `Vibe-Timer-Setup-0.1.1.exe` | Double-click to install. SmartScreen may warn (unsigned) → **More info → Run anyway**. |
-| **Windows (no install)** | `Vibe-Timer-0.1.1-win-x64.zip` *(portable)* | Unzip, run `Vibe Timer.exe`. Nothing to install. |
+| **Windows (no install)** | `Vibe-Timer-0.1.1-win.zip` *(portable, if attached)* | Unzip, run `Vibe Timer.exe`. Nothing to install. |
 | **macOS** (Apple Silicon — M1/M2/M3) | `Vibe-Timer-0.1.1-arm64.dmg` | Open the dmg, drag to Applications. First launch: **right-click → Open** (unsigned). |
 | **Linux** | `Vibe-Timer-0.1.1.AppImage` | `chmod +x Vibe-Timer-0.1.1.AppImage` then run it. |
 
