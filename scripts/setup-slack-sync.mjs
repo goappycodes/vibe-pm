@@ -40,11 +40,32 @@ create table if not exists private.slack_config (
 );
 revoke all on private.slack_config from anon, authenticated;
 
+-- Who last touched a task, so a change notice can name them. The app sets
+-- it on every write, including just before a delete.
+alter table public.tasks
+  add column if not exists updated_by text
+  references public.team_members(id) on delete set null;
+
+-- Recently posted messages, so the same notice cannot land twice: a retry,
+-- a double-click, two windows saving the same edit, or a webhook racing
+-- the trigger all collapse into one post.
+create table if not exists private.slack_recent (
+  digest text primary key,
+  at timestamptz not null default now()
+);
+revoke all on private.slack_recent from anon, authenticated;
+
+-- How long an identical message stays suppressed.
+create or replace function private.slack_dedupe_window()
+returns interval language sql immutable as $fn$
+  select interval '90 seconds'
+$fn$;
+
 -- Low-level poster: resolve a channel id/name and fire chat.postMessage.
 create or replace function private.slack_post(p_channel text, p_text text)
 returns void language plpgsql security definer
 set search_path = public, private as $fn$
-declare v_token text; v_target text;
+declare v_token text; v_target text; v_digest text; v_fresh int;
 begin
   select bot_token into v_token from private.slack_config where id = 1;
   if v_token is null or p_channel is null or p_text is null then return; end if;
@@ -52,6 +73,18 @@ begin
     when p_channel ~ '^[CGD][A-Z0-9]{6,}$' then p_channel
     else '#' || ltrim(p_channel, '#')
   end;
+
+  -- Same text to the same channel inside the window is a duplicate. The
+  -- upsert is the lock: only the statement that actually writes the row
+  -- (the first, or the first after the window lapsed) gets to post, so
+  -- concurrent writers cannot both slip through.
+  v_digest := md5(v_target || '|' || p_text);
+  delete from private.slack_recent where at < now() - interval '1 day';
+  insert into private.slack_recent as r (digest, at) values (v_digest, now())
+    on conflict (digest) do update set at = excluded.at
+      where r.at < now() - private.slack_dedupe_window()
+  returning 1 into v_fresh;
+  if v_fresh is null then return; end if;
   -- Never let a Slack/pg_net hiccup roll back the caller's write.
   begin
     perform net.http_post(
@@ -85,7 +118,7 @@ returns trigger language plpgsql security definer
 set search_path = public, private as $fn$
 declare
   v_channel text; v_text text; v_assignee text; v_changes text[]; v_heading text;
-  v_link text;
+  v_link text; v_actor text;
   st jsonb := '{"backlog":"Backlog","todo":"To do","in_progress":"In progress","blocked":"Blocked","in_review":"In review","done":"Done"}'::jsonb;
 begin
   v_channel := private.slack_channel_for(coalesce(NEW.project_id, OLD.project_id));
@@ -97,12 +130,16 @@ begin
 
   if TG_OP = 'INSERT' then
     select name into v_assignee from public.team_members where id = NEW.assignee_id;
+    select name into v_actor from public.team_members where id = NEW.created_by;
     v_text := ':new: *New task* — *' || NEW.title || '*  ·  ' ||
       coalesce(v_assignee, 'Unassigned') ||
       coalesce('  ·  due ' || NEW.due_date::text, '') ||
-      '  ·  ' || coalesce(st->>NEW.status, NEW.status) || v_link;
+      '  ·  ' || coalesce(st->>NEW.status, NEW.status) ||
+      '  ·  added by ' || coalesce(v_actor, 'someone') || v_link;
   elsif TG_OP = 'DELETE' then
-    v_text := ':wastebasket: *Task removed* — ' || OLD.title;
+    select name into v_actor from public.team_members where id = OLD.updated_by;
+    v_text := ':wastebasket: *Task removed* — ' || OLD.title ||
+      '  ·  by ' || coalesce(v_actor, 'someone');
   else
     v_changes := array[]::text[];
     if NEW.status is distinct from OLD.status then
@@ -124,8 +161,10 @@ begin
       v_changes := v_changes || ('urgency → ' || NEW.urgency);
     end if;
     if array_length(v_changes, 1) is null then return NEW; end if;
+    select name into v_actor from public.team_members where id = NEW.updated_by;
     v_text := ':pencil2: *' || coalesce(v_heading, NEW.title) || '* — ' ||
-              array_to_string(v_changes, ', ') || v_link;
+              array_to_string(v_changes, ', ') ||
+              '  ·  by ' || coalesce(v_actor, 'someone') || v_link;
   end if;
 
   perform private.slack_post(v_channel, v_text);

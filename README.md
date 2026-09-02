@@ -34,7 +34,7 @@ Plus: a **command palette** (`⌘K` / `Ctrl-K`) to jump between views and search
 
 ## Mock data
 
-Static JSON under [`/data`](data) — `tasks`, `team_members`, `projects`, `task_dependencies`, `updates`, `activity_log`. The board is anchored to **2026-08-26** so relative dates (overdue / today) stay coherent. Current user is Ritesh Agarwal (`u1`).
+Static JSON under [`/data`](data) — `tasks`, `team_members`, `projects`, `task_dependencies`, `updates`, `activity_log`. Relative dates (overdue / today / this week) are computed against the **real current date** — `today()` in [lib/utils.ts](lib/utils.ts) — so the bundled sample dates read as long overdue. Current user is Ritesh Agarwal (`u1`).
 
 ## Run it
 

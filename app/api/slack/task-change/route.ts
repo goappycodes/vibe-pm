@@ -1,3 +1,4 @@
+import { claimSlackMessage } from "@/lib/slack/dedupe";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -87,8 +88,11 @@ export async function POST(req: NextRequest) {
   const channel = project?.slack_channel_id as string | null | undefined;
   if (!channel) return NextResponse.json({ ignored: "no channel" });
 
-  const nameOf = async (id: unknown): Promise<string> => {
-    if (!id) return "Unassigned";
+  const nameOf = async (
+    id: unknown,
+    fallback = "Unassigned"
+  ): Promise<string> => {
+    if (!id) return fallback;
     const { data } = await sb
       .from("team_members")
       .select("name")
@@ -102,9 +106,11 @@ export async function POST(req: NextRequest) {
   if (type === "INSERT") {
     const assignee = await nameOf(task.assignee_id);
     const due = task.due_date ? `  ·  due ${task.due_date}` : "";
-    text = `:new: *New task* — *${task.title}*  ·  ${assignee}${due}  ·  ${st(task.status)}`;
+    const by = await nameOf(task.created_by, "someone");
+    text = `:new: *New task* — *${task.title}*  ·  ${assignee}${due}  ·  ${st(task.status)}  ·  added by ${by}`;
   } else if (type === "DELETE") {
-    text = `:wastebasket: *Task removed* — ${task.title}`;
+    const by = await nameOf(task.updated_by, "someone");
+    text = `:wastebasket: *Task removed* — ${task.title}  ·  by ${by}`;
   } else {
     const changes: string[] = [];
     if (record && old_record) {
@@ -121,7 +127,14 @@ export async function POST(req: NextRequest) {
     }
     if (!changes.length)
       return NextResponse.json({ ignored: "no notable change" });
-    text = `:pencil2: *${record!.title}* — ${changes.join(", ")}`;
+    const by = await nameOf(record!.updated_by, "someone");
+    text = `:pencil2: *${record!.title}* — ${changes.join(", ")}  ·  by ${by}`;
+  }
+
+  // The DB triggers post the same events; if both paths are ever enabled,
+  // or the webhook retries, only the first identical message goes out.
+  if (!claimSlackMessage(channel, text)) {
+    return NextResponse.json({ channel, text, duplicate: true });
   }
 
   const result = await postToSlack(channel, text);

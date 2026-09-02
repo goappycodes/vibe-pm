@@ -11,7 +11,9 @@ import {
   formatClock,
   formatDuration,
   minutesBetween,
+  nowClock,
   parseDate,
+  today,
   TODAY,
   toISODate,
 } from "@/lib/utils";
@@ -41,7 +43,7 @@ import { createPortal } from "react-dom";
 
 const sumMinutes = (logs: TimeLog[]) => logs.reduce((a, l) => a + l.minutes, 0);
 
-/** "Today" / "Yesterday" / "Wed, Aug 26" — the app's clock is anchored to TODAY. */
+/** "Today" / "Yesterday" / "Wed, Aug 26" — relative to the real current date. */
 function dayLabel(date: string) {
   const today = toISODate(TODAY);
   if (date === today) return "Today";
@@ -457,9 +459,9 @@ function LogBar() {
     taskId: "",
     projectId: "",
     remark: "",
-    start: "09:00",
-    end: "09:00",
-    date: toISODate(TODAY),
+    start: nowClock(),
+    end: nowClock(),
+    date: toISODate(today()),
   });
   const { draft, patch, minutes } = form;
 

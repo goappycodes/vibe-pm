@@ -1,3 +1,4 @@
+import { claimSlackMessage } from "@/lib/slack/dedupe";
 import { NextRequest, NextResponse } from "next/server";
 
 // Posts a daily standup (a member's plan for the day) to the team's Slack
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
   const hint = typeof body.channel === "string" ? body.channel : "";
   const channel =
     process.env.SLACK_STANDUP_CHANNEL || hint || "standups";
+
+  // A second identical standup within the window is a double-submit, not a
+  // second standup — report it as handled so the caller still logs it once.
+  if (!claimSlackMessage(channel, text)) {
+    console.log(`[slack standup] duplicate suppressed for ${channel}`);
+    return NextResponse.json({ ok: true, duplicate: true, channel });
+  }
 
   const result = await postToSlack(channel, text);
   return NextResponse.json(result);

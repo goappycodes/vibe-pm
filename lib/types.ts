@@ -57,6 +57,8 @@ export interface Task {
   urgency: Urgency;
   order: number;
   created_by: string;
+  /** Last person to change it — Slack names them in the change notice. */
+  updated_by: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;

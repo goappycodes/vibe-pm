@@ -23,11 +23,16 @@ import {
   addMinutesToClock,
   minutesBetween,
   parseDate,
-  TODAY,
+  today,
   toISODate,
 } from "./utils";
 import { supabase } from "./supabase/client";
-import { deleteRow, isRecentLocal, upsertRows } from "./supabase/persist";
+import {
+  deleteRow,
+  deleteTaskAs,
+  isRecentLocal,
+  upsertRows,
+} from "./supabase/persist";
 
 import tasksData from "@/data/tasks.json";
 import membersData from "@/data/team_members.json";
@@ -217,7 +222,8 @@ function cascadeReschedule(
   tasks: Task[],
   deps: TaskDependency[],
   changedId: string,
-  at: string
+  at: string,
+  actorId: string
 ): { tasks: Task[]; moved: string[] } {
   const byId = new Map(tasks.map((t) => [t.id, { ...t }]));
   const moved: string[] = [];
@@ -239,6 +245,7 @@ function cascadeReschedule(
       if (!depDue || depDue < minStart) {
         dependent.due_date = toISODate(minStart);
         dependent.updated_at = at;
+        dependent.updated_by = actorId;
         moved.push(dependent.id);
         queue.push(dependent.id);
       }
@@ -417,12 +424,14 @@ export const useStore = create<State>((set, get) => ({
     }
 
     let tasks = state.tasks.map((t) =>
-      t.id === id ? { ...t, ...withCompletion, updated_at: now } : t
+      t.id === id
+        ? { ...t, ...withCompletion, updated_at: now, updated_by: actorId }
+        : t
     );
     const entries = buildActivity(target, patch, actorId, source, now);
     let movedIds: string[] = [];
     if (dueChangedLater) {
-      const r = cascadeReschedule(tasks, state.dependencies, id, now);
+      const r = cascadeReschedule(tasks, state.dependencies, id, now, actorId);
       tasks = r.tasks;
       movedIds = r.moved;
     }
@@ -446,12 +455,12 @@ export const useStore = create<State>((set, get) => ({
       if (patch.status && patch.status !== t.status) {
         extra.completed_at = patch.status === "done" ? now : null;
       }
-      return { ...t, ...patch, ...extra, updated_at: now };
+      return { ...t, ...patch, ...extra, updated_at: now, updated_by: actorId };
     });
     const changed = new Set(ids);
     if (patch.due_date !== undefined) {
       for (const id of ids) {
-        const r = cascadeReschedule(tasks, state.dependencies, id, now);
+        const r = cascadeReschedule(tasks, state.dependencies, id, now, actorId);
         tasks = r.tasks;
         r.moved.forEach((mid) => changed.add(mid));
       }
@@ -478,6 +487,7 @@ export const useStore = create<State>((set, get) => ({
             order: order ?? t.order,
             completed_at: status === "done" ? now : null,
             updated_at: now,
+            updated_by: state.currentUserId,
           }
         : t
     );
@@ -518,6 +528,7 @@ export const useStore = create<State>((set, get) => ({
       urgency: partial.urgency ?? "medium",
       order: 0,
       created_by: state.currentUserId,
+      updated_by: state.currentUserId,
       completed_at: null,
       created_at: now,
       updated_at: now,
@@ -528,6 +539,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   deleteTask: (id) => {
+    const actorId = get().currentUserId;
     set((state) => ({
       tasks: state.tasks.filter((t) => t.id !== id),
       dependencies: state.dependencies.filter(
@@ -538,7 +550,9 @@ export const useStore = create<State>((set, get) => ({
       selectedTaskIds: state.selectedTaskIds.filter((x) => x !== id),
       detailTaskId: state.detailTaskId === id ? null : state.detailTaskId,
     }));
-    deleteRow("tasks", { id }); // DB cascades deps + activity + day_selections
+    // Stamps the actor first so Slack can name who removed it; the DB
+    // cascades deps + activity + day_selections.
+    deleteTaskAs(id, actorId);
   },
 
   bulkDelete: (ids) => {
@@ -556,7 +570,8 @@ export const useStore = create<State>((set, get) => ({
           ? null
           : state.detailTaskId,
     }));
-    ids.forEach((id) => deleteRow("tasks", { id }));
+    const actorId = get().currentUserId;
+    ids.forEach((id) => deleteTaskAs(id, actorId));
   },
 
   addDependency: (taskId, dependsOnId) => {
@@ -674,7 +689,7 @@ export const useStore = create<State>((set, get) => ({
   todayPlanTaskIds: (userId) => {
     const state = get();
     const uid = userId ?? state.currentUserId;
-    const date = toISODate(TODAY);
+    const date = toISODate(today());
     return state.daySelections
       .filter((d) => d.user_id === uid && d.date === date)
       .map((d) => d.task_id);
@@ -683,7 +698,7 @@ export const useStore = create<State>((set, get) => ({
   addToDayPlan: (taskId, userId) => {
     const state = get();
     const uid = userId ?? state.currentUserId;
-    const date = toISODate(TODAY);
+    const date = toISODate(today());
     const id = `ds_${uid}_${date}_${taskId}`;
     if (state.daySelections.some((d) => d.id === id)) return;
     const row: DaySelection = {
@@ -700,7 +715,7 @@ export const useStore = create<State>((set, get) => ({
   removeFromDayPlan: (taskId, userId) => {
     const state = get();
     const uid = userId ?? state.currentUserId;
-    const date = toISODate(TODAY);
+    const date = toISODate(today());
     const id = `ds_${uid}_${date}_${taskId}`;
     set({
       daySelections: state.daySelections.filter((d) => d.id !== id),
@@ -776,7 +791,7 @@ export const useStore = create<State>((set, get) => ({
     get().addTimeLog({
       project_id: task?.project_id ?? null,
       task_id: rt.taskId,
-      date: toISODate(TODAY),
+      date: toISODate(today()),
       start_time: startClock,
       end_time: addMinutesToClock(startClock, minutes),
       note: "Timer",

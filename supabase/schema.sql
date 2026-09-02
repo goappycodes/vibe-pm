@@ -62,6 +62,8 @@ create table tasks (
     check (urgency in ('low','medium','high','urgent')),
   "order" integer not null default 0,
   created_by text references team_members(id) on delete set null,
+  -- last editor; Slack change notices name them
+  updated_by text references team_members(id) on delete set null,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

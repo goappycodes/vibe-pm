@@ -11,8 +11,19 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
-// Fixed "today" so the mock data never ages out of sync with its due dates.
-export const TODAY = new Date("2026-08-26T00:00:00");
+/** Midnight today, in the viewer's timezone. Always the real current date. */
+export function today(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Today, resolved once per page load. Safe (and stable) for rendering and
+ * for useMemo deps; anything that *writes* a date should call today() so a
+ * session left open past midnight still records the right day.
+ */
+export const TODAY = today();
 
 export function parseDate(d: string | null | undefined): Date | null {
   if (!d) return null;
@@ -154,6 +165,13 @@ export function decimalHours(minutes: number): number {
 }
 
 /** "09:50" + 25 → "10:15". Clamps at 23:59 rather than wrapping past midnight. */
+/** Now as "HH:MM", rounded down to a 5-minute mark. */
+export function nowClock(step = 5): string {
+  const d = new Date();
+  const mins = Math.floor(d.getMinutes() / step) * step;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
 export function addMinutesToClock(hhmm: string, mins: number): string {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
   if (!m) return hhmm;

@@ -41,6 +41,27 @@ export function upsertRows(table: string, rows: object[]) {
     });
 }
 
+/**
+ * Record who is deleting, then delete — awaited in order so the row still
+ * carries the actor when the delete trigger fires. The stamp changes no
+ * notifiable field, so it posts nothing of its own.
+ */
+export function deleteTaskAs(id: string, actorId: string) {
+  if (!supabase) return;
+  const sb = supabase;
+  markLocal(`tasks:${id}`);
+  void (async () => {
+    const stamp = await sb
+      .from("tasks")
+      .update({ updated_by: actorId })
+      .eq("id", id);
+    if (stamp.error)
+      console.error("[persist] tasks stamp:", stamp.error.message);
+    const del = await sb.from("tasks").delete().eq("id", id);
+    if (del.error) console.error("[persist] tasks delete:", del.error.message);
+  })();
+}
+
 export function deleteRow(table: string, match: Record<string, unknown>) {
   if (!supabase) return;
   markLocal(keyOf(table, match));

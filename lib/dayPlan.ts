@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { useMemo } from "react";
 import { useStore } from "./store";
 import type { Task } from "./types";
-import { formatDuration, TODAY, toISODate } from "./utils";
+import { formatDuration, today as todayDate, toISODate } from "./utils";
 
 const DEFAULT_MIN_DAILY_POINTS = 3;
 
@@ -22,7 +22,7 @@ export function useTodayPlan(userId?: string) {
     DEFAULT_MIN_DAILY_POINTS;
 
   const uid = userId ?? currentUserId;
-  const today = toISODate(TODAY);
+  const today = toISODate(todayDate());
 
   const planTasks = useMemo(() => {
     const ids = new Set(
