@@ -1,7 +1,7 @@
 {
   "name": "vibe-timer-desktop",
   "productName": "Vibe Timer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Desktop time-tracking companion for Vibe PM — browser sign-in, forced task selection, break tracking.",
   "author": "Appycodes",
   "private": true,
