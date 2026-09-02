@@ -9,7 +9,7 @@ export interface AuthTokens {
 }
 
 const WEB_LOGIN_URL =
-  import.meta.env.MAIN_VITE_WEB_LOGIN_URL || "http://localhost:3000";
+  import.meta.env.MAIN_VITE_WEB_LOGIN_URL || "https://vibe-pm-six.vercel.app";
 
 const AUTH_TIMEOUT_MS = 5 * 60 * 1000;
 
