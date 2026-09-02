@@ -23,6 +23,7 @@ export interface RunningBreak {
 
 const TIMER_KEY = "vibe-timer.running";
 const BREAK_KEY = "vibe-timer.break";
+const WORK_STOPPED_KEY = "vibe-timer.workStopped";
 
 function load<T>(key: string): T | null {
   try {
@@ -58,6 +59,7 @@ interface State {
 
   timer: RunningTimer | null;
   brk: RunningBreak | null;
+  workStopped: boolean; // clocked out for the day — tracking is paused
 
   init: () => void;
   signIn: () => Promise<void>;
@@ -101,6 +103,9 @@ interface State {
 
   startBreak: (type: BreakType) => void; // logs current work, begins break
   endBreak: () => void; // logs the break, returns to picker
+
+  stopWork: () => void; // clock out: stop timer/break + pause all tracking
+  startWork: () => void; // clock back in
 }
 
 async function loadMemberByEmail(email: string): Promise<TeamMember | null> {
@@ -130,6 +135,7 @@ export const useStore = create<State>((set, get) => ({
 
   timer: load<RunningTimer>(TIMER_KEY),
   brk: load<RunningBreak>(BREAK_KEY),
+  workStopped: !!load<boolean>(WORK_STOPPED_KEY),
 
   init: () => {
     if (!hasConfig) {
@@ -584,5 +590,18 @@ export const useStore = create<State>((set, get) => ({
       .then(({ error }) => {
         if (error) console.error("[breaks] insert:", error.message);
       });
+  },
+
+  stopWork: () => {
+    // Close whatever's open (logs it), then pause all tracking for the day.
+    if (get().timer) get().stopTimer();
+    else if (get().brk) get().endBreak();
+    set({ workStopped: true });
+    save(WORK_STOPPED_KEY, true);
+  },
+
+  startWork: () => {
+    set({ workStopped: false });
+    save(WORK_STOPPED_KEY, false);
   },
 }));

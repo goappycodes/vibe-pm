@@ -1,7 +1,7 @@
 export {};
 
 export interface TimerState {
-  mode: "timer" | "break" | "idle" | "inactive";
+  mode: "timer" | "break" | "idle" | "inactive" | "off";
   label: string;
   taskTitle?: string;
   taskId?: string;

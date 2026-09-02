@@ -7,7 +7,7 @@ export interface AuthTokens {
 }
 
 export interface TimerState {
-  mode: "timer" | "break" | "idle" | "inactive";
+  mode: "timer" | "break" | "idle" | "inactive" | "off";
   label: string; // preformatted text for the tray/mini, e.g. "▶ 12:34 · Design"
   taskTitle?: string;
   taskId?: string; // for activity attribution

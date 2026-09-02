@@ -3,7 +3,7 @@ import { Square, Timer } from "lucide-react";
 import { fmtElapsed } from "./lib/time";
 
 interface TimerState {
-  mode: "timer" | "break" | "idle" | "inactive";
+  mode: "timer" | "break" | "idle" | "inactive" | "off";
   label: string;
   taskTitle?: string;
   breakType?: string;

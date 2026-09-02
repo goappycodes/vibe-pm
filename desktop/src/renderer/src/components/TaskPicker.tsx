@@ -1,7 +1,15 @@
 import { useMemo, useState } from "react";
 import { Coffee, Play, Plus, Search, X } from "lucide-react";
 import { useStore } from "../lib/store";
-import { orderPickerTasks, type Project, type Task } from "../lib/types";
+import {
+  BREAK_LABEL,
+  orderPickerTasks,
+  type BreakType,
+  type Project,
+  type Task,
+} from "../lib/types";
+
+const BREAK_TYPES: BreakType[] = ["short", "lunch", "other"];
 
 const PROJECT_DOT: Record<string, string> = {
   indigo: "#6366f1",
@@ -22,6 +30,7 @@ export function TaskPicker() {
   const startBreak = useStore((s) => s.startBreak);
   const [q, setQ] = useState("");
   const [showNew, setShowNew] = useState(false);
+  const [choosingBreak, setChoosingBreak] = useState(false);
   const [showAll, setShowAll] = useState(() => {
     try {
       return localStorage.getItem(SHOW_ALL_KEY) === "1";
@@ -174,12 +183,35 @@ export function TaskPicker() {
           marginTop: 6,
         }}
       >
-        <button
-          className="btn btn-ghost btn-block"
-          onClick={() => startBreak("short")}
-        >
-          <Coffee className="icon" /> Take a break instead
-        </button>
+        {choosingBreak ? (
+          <div className="chooser">
+            <div className="section-label" style={{ textAlign: "center" }}>
+              Which break?
+            </div>
+            {BREAK_TYPES.map((t) => (
+              <button
+                key={t}
+                className="btn btn-block"
+                onClick={() => startBreak(t)}
+              >
+                {BREAK_LABEL[t]}
+              </button>
+            ))}
+            <button
+              className="btn btn-ghost btn-block"
+              onClick={() => setChoosingBreak(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn btn-ghost btn-block"
+            onClick={() => setChoosingBreak(true)}
+          >
+            <Coffee className="icon" /> Take a break
+          </button>
+        )}
       </div>
     </div>
   );

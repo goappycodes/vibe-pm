@@ -100,7 +100,10 @@ function sendCommand(cmd: string): void {
 
 // --- mini window visibility follows auth + the mini toggle ---
 function reconcileMini(): void {
-  const shouldShow = settings.miniEnabled && lastState.mode !== "inactive";
+  const shouldShow =
+    settings.miniEnabled &&
+    lastState.mode !== "inactive" &&
+    lastState.mode !== "off";
   if (shouldShow) {
     if (!getMini()) {
       createMini(settings, (bounds) => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ListChecks, LogOut, Timer } from "lucide-react";
+import { ListChecks, LogOut, Play, Power, Timer } from "lucide-react";
 import { useStore } from "./lib/store";
 import { fmtElapsed } from "./lib/time";
 import { BREAK_LABEL } from "./lib/types";
@@ -20,6 +20,40 @@ function Loading({ label }: { label: string }) {
   );
 }
 
+function StoppedView({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="screen center">
+      <div
+        className="dot"
+        style={{
+          width: 46,
+          height: 46,
+          background: "var(--surface-2)",
+          color: "var(--faint)",
+        }}
+      >
+        <Power style={{ width: 22, height: 22 }} />
+      </div>
+      <h1 style={{ marginTop: 10 }}>Done for the day</h1>
+      <p className="muted small" style={{ maxWidth: 260 }}>
+        Tracking is paused — no timer, breaks, or activity are recorded. Enjoy
+        your personal time.
+      </p>
+      <button
+        className="btn btn-primary btn-lg btn-block"
+        style={{ maxWidth: 260, marginTop: 12 }}
+        onClick={onStart}
+      >
+        <Play className="icon" fill="currentColor" /> Start work
+      </button>
+      <p className="faint small" style={{ maxWidth: 260, marginTop: 14 }}>
+        The app stays in the tray. It won&apos;t nudge you or track anything until
+        you start work again.
+      </p>
+    </div>
+  );
+}
+
 function Header({
   screen,
   setScreen,
@@ -29,6 +63,8 @@ function Header({
 }) {
   const me = useStore((s) => s.me);
   const signOut = useStore((s) => s.signOut);
+  const workStopped = useStore((s) => s.workStopped);
+  const stopWork = useStore((s) => s.stopWork);
   const [open, setOpen] = useState(false);
   const [auto, setAuto] = useState<boolean | null>(null);
   const [mini, setMini] = useState<boolean | null>(null);
@@ -103,6 +139,19 @@ function Header({
               {auto === null ? "…" : auto ? "On" : "Off"}
             </span>
           </button>
+          {!workStopped && (
+            <button
+              className="menu-row"
+              onClick={() => {
+                setOpen(false);
+                stopWork();
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Power className="icon" /> Stop work for today
+              </span>
+            </button>
+          )}
           <button
             className="menu-row"
             onClick={() => {
@@ -126,6 +175,8 @@ export function App() {
   const me = useStore((s) => s.me);
   const timer = useStore((s) => s.timer);
   const brk = useStore((s) => s.brk);
+  const workStopped = useStore((s) => s.workStopped);
+  const startWork = useStore((s) => s.startWork);
   const taskById = useStore((s) => s.taskById);
   const [screen, setScreen] = useState<Screen>("main");
 
@@ -139,6 +190,10 @@ export function App() {
       if (!window.api?.setTimerState) return;
       if (phase !== "ready") {
         window.api.setTimerState({ mode: "inactive", label: "" });
+        return;
+      }
+      if (workStopped) {
+        window.api.setTimerState({ mode: "off", label: "Not working" });
         return;
       }
       if (brk) {
@@ -166,7 +221,7 @@ export function App() {
     push();
     const id = setInterval(push, 1000);
     return () => clearInterval(id);
-  }, [timer, brk, phase, taskById]);
+  }, [timer, brk, phase, taskById, workStopped]);
 
   // Commands from the tray / mini window / idle prompt.
   useEffect(() => {
@@ -198,6 +253,7 @@ export function App() {
   else if (phase === "signed-out" || (phase === "authenticating" && !me)) {
     body = <LoginView />;
   } else if (phase === "authenticating") body = <Loading label="Signing in…" />;
+  else if (workStopped) body = <StoppedView onStart={startWork} />;
   else if (screen === "entries")
     body = <EntriesView onBack={() => setScreen("main")} />;
   else if (brk) body = <BreakView />;

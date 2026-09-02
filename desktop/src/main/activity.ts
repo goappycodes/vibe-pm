@@ -5,7 +5,7 @@ const SAMPLE_MS = 15_000; // check input activity every 15s
 const ACTIVE_IF_IDLE_UNDER = 45; // seconds since last input to still count as active
 
 export interface ActivityContext {
-  mode: "timer" | "break" | "idle" | "inactive";
+  mode: "timer" | "break" | "idle" | "inactive" | "off";
   taskId: string | null;
 }
 
@@ -36,7 +36,8 @@ export function startActivityTracking(
 
   const tick = () => {
     const ctx = getContext();
-    if (ctx.mode === "inactive") return; // signed out — don't track
+    // Signed out ("inactive") or clocked out ("off") — don't track.
+    if (ctx.mode === "inactive" || ctx.mode === "off") return;
 
     const { date, minute } = localParts(new Date());
     const key = `${date} ${minute}`;
