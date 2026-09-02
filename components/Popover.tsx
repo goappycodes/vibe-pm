@@ -102,7 +102,9 @@ export function Popover({
             ref={panelRef}
             style={{ top: pos.top, left: pos.left, width }}
             className={cn(
-              "fixed z-50 overflow-hidden rounded-xl border border-border bg-surface shadow-pop animate-scale-in",
+              // Above dialogs (z-70) and the command palette (z-60) — a picker opened
+              // from inside a modal has to render on top of it, not behind.
+              "fixed z-[80] overflow-hidden rounded-xl border border-border bg-surface shadow-pop animate-scale-in",
               className
             )}
           >

@@ -10,6 +10,7 @@ import { CommandPalette } from "./CommandPalette";
 import { DayPlanBanner } from "./DayPlanBanner";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { LoginPage } from "./LoginPage";
+import { NewTaskDialog } from "./NewTaskDialog";
 import { PageSkeleton } from "./Skeleton";
 import { Sidebar } from "./Sidebar";
 import { TaskDetailDrawer } from "./TaskDetailDrawer";
@@ -184,6 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <CommandPalette />
+      <NewTaskDialog />
       <KeyboardShortcuts />
       <TaskDetailDrawer />
       <TimerBar />

@@ -69,6 +69,8 @@ export function composeStandup(opts: {
   blockedTasks: Task[];
   totalPoints: number;
   minutesLogged?: number;
+  /** Resolves a task's project name — it prefixes each line in Slack. */
+  projectName?: (projectId: string) => string | undefined;
 }): string {
   const {
     memberName,
@@ -78,12 +80,20 @@ export function composeStandup(opts: {
     blockedTasks,
     totalPoints,
     minutesLogged = 0,
+    projectName,
   } = opts;
   const inProgress = planTasks.filter(
     (t) => t.status !== "done" && t.status !== "blocked"
   );
+  // Standups land in one shared channel, so each line says which project it
+  // belongs to — a bare task title out of context means little to readers.
   const list = (items: Task[]) =>
-    items.map((t) => `• ${t.title}`).join("\n");
+    items
+      .map((t) => {
+        const project = projectName?.(t.project_id);
+        return project ? `• *${project}* — ${t.title}` : `• ${t.title}`;
+      })
+      .join("\n");
 
   let dateLabel = today;
   try {

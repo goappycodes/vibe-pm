@@ -232,6 +232,7 @@ function TodayPlan() {
     s.members.find((m) => m.id === s.currentUserId)
   );
   const channels = useStore((s) => s.settings.slack.channels);
+  const projectById = useStore((s) => s.projectById);
   const timeLogs = useStore((s) => s.timeLogs);
   const { today, planTasks, doneTasks, blockedTasks, totalPoints, minPoints, enough, pct } =
     useTodayPlan();
@@ -255,6 +256,7 @@ function TodayPlan() {
       blockedTasks,
       totalPoints,
       minutesLogged,
+      projectName: (id) => projectById(id)?.name,
     });
 
   // Send exactly what the preview shows — no surprises about what hits Slack.
@@ -429,12 +431,13 @@ function TodayPlan() {
 function QuickAdd() {
   const addTask = useStore((s) => s.addTask);
   const projects = useStore((s) => s.projects);
+  const defaultProjectId = useStore((s) => s.defaultProjectId);
   const currentUserId = useStore((s) => s.currentUserId);
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const pid = projectId || projects[0]?.id || "";
+  const pid = projectId || defaultProjectId() || projects[0]?.id || "";
 
   const submit = () => {
     const t = title.trim();

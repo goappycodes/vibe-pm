@@ -47,7 +47,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const activeProject = useStore((s) => s.activeProject);
   const setActiveProject = useStore((s) => s.setActiveProject);
   const setCommandOpen = useStore((s) => s.setCommandOpen);
-  const addTask = useStore((s) => s.addTask);
+  const setNewTaskOpen = useStore((s) => s.setNewTaskOpen);
   const openDetail = useStore((s) => s.openDetail);
 
   const showProjectFilter = FILTER_ROUTES.includes(pathname);
@@ -55,10 +55,9 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const showNewTask = NEW_TASK_ROUTES.includes(pathname);
   const active = projects.find((p) => p.id === activeProject);
 
-  const handleNew = () => {
-    const id = addTask({ title: "Untitled task" });
-    openDetail(id);
-  };
+  // Opens the dialog rather than inserting a placeholder task: creating
+  // first fired a Slack notice into whichever project was guessed.
+  const handleNew = () => setNewTaskOpen(true);
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur sm:px-5">

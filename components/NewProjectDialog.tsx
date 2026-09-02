@@ -125,30 +125,35 @@ export function NewProjectDialog({
           <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Client">
               <ClientPicker
+                full
                 value={draft.client_id}
                 onChange={(id) => patch({ client_id: id })}
               />
             </Field>
             <Field label="Owner">
               <AssigneePicker
+                full
                 value={draft.owner_id}
                 onChange={(id) => patch({ owner_id: id ?? currentUserId })}
               />
             </Field>
             <Field label="Slack channel">
               <SlackChannelPicker
+                full
                 value={draft.slack_channel_id}
                 onChange={(n) => patch({ slack_channel_id: n })}
               />
             </Field>
             <Field label="Target date">
               <DatePicker
+                full
                 value={draft.target_date}
                 onChange={(d) => patch({ target_date: d })}
               />
             </Field>
             <Field label="Status">
               <ProjectStatusPicker
+                full
                 value={draft.status}
                 onChange={(status) => patch({ status })}
               />

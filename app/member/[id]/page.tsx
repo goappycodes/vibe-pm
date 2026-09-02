@@ -69,6 +69,7 @@ export default function MemberPage() {
   );
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
+  const defaultProjectId = useStore((s) => s.defaultProjectId);
   const timeLogs = useStore((s) => s.timeLogs);
   const isAdmin = useStore(
     (s) => s.members.find((m) => m.id === s.currentUserId)?.role === "admin"
@@ -340,6 +341,7 @@ export default function MemberPage() {
 function AdminMemberActions({ member }: { member: TeamMember }) {
   const addTask = useStore((s) => s.addTask);
   const projects = useStore((s) => s.projects);
+  const defaultProjectId = useStore((s) => s.defaultProjectId);
   const updateTask = useStore((s) => s.updateTask);
   const removeFromDayPlan = useStore((s) => s.removeFromDayPlan);
   const { planTasks, doneTasks, totalPoints } = useTodayPlan(member.id);
@@ -348,7 +350,7 @@ function AdminMemberActions({ member }: { member: TeamMember }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const pid = projectId || projects[0]?.id || "";
+  const pid = projectId || defaultProjectId() || projects[0]?.id || "";
   const first = member.name.split(" ")[0];
 
   const submit = () => {

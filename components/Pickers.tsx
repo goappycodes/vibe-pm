@@ -18,6 +18,14 @@ import { MenuItem, Popover } from "./Popover";
 import { Avatar } from "./Avatar";
 import { DueBadge, ProjectBadge, StatusBadge, UrgencyBadge } from "./Badges";
 
+/**
+ * Form-field styling for a picker: a full-width control with a real border
+ * and a proper hit area. The bare trigger is sized for dense table cells,
+ * which is far too small to aim at in a dialog.
+ */
+const FIELD =
+  "w-full justify-start rounded-lg border border-border bg-surface px-2.5 py-2 hover:bg-surface-2";
+
 function TriggerButton({
   children,
   className,
@@ -92,15 +100,18 @@ function SearchMenu<T>({
 export function StatusPicker({
   value,
   onChange,
+  full,
 }: {
   value: Status;
   onChange: (s: Status) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   return (
     <Popover
-      width={180}
+      width={full ? Math.max(180, 300) : 180}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           <StatusBadge status={value} />
         </TriggerButton>
       )}
@@ -134,15 +145,18 @@ export function StatusPicker({
 export function UrgencyPicker({
   value,
   onChange,
+  full,
 }: {
   value: Urgency;
   onChange: (u: Urgency) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   return (
     <Popover
-      width={160}
+      width={full ? Math.max(160, 300) : 160}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           <UrgencyBadge urgency={value} />
         </TriggerButton>
       )}
@@ -173,17 +187,20 @@ export function UrgencyPicker({
 export function AssigneePicker({
   value,
   onChange,
+  full,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const members = useStore((s) => s.members);
   const member = members.find((m) => m.id === value);
   return (
     <Popover
-      width={220}
+      width={full ? Math.max(220, 300) : 220}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           <Avatar member={member} size="sm" />
           <span className="text-sm text-fg">
             {member ? member.name.split(" ")[0] : "Unassigned"}
@@ -236,18 +253,25 @@ export function AssigneePicker({
 export function ProjectPicker({
   value,
   onChange,
+  full,
 }: {
   value: string;
   onChange: (id: string) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const projects = useStore((s) => s.projects);
   const project = projects.find((p) => p.id === value);
   return (
     <Popover
-      width={220}
+      width={full ? Math.max(220, 300) : 220}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
-          <ProjectBadge project={project} />
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
+          {project ? (
+            <ProjectBadge project={project} />
+          ) : (
+            <span className="text-sm text-faint">Select a project…</span>
+          )}
         </TriggerButton>
       )}
     >
@@ -333,17 +357,20 @@ export function StoryPointsPicker({
 export function ClientPicker({
   value,
   onChange,
+  full,
 }: {
   value: string | null;
   onChange: (id: string | null) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const clients = useStore((s) => s.clients);
   const client = clients.find((c) => c.id === value);
   return (
     <Popover
-      width={230}
+      width={full ? Math.max(230, 300) : 230}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           {client ? (
             <span className="flex items-center gap-1.5 text-sm text-fg">
               <span
@@ -405,17 +432,20 @@ export function ClientPicker({
 export function SlackChannelPicker({
   value,
   onChange,
+  full,
 }: {
   value: string | null;
   onChange: (name: string | null) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const channels = useStore((s) => s.settings.slack.channels);
   const connected = useStore((s) => s.settings.slack.connected);
   return (
     <Popover
-      width={240}
+      width={full ? Math.max(240, 300) : 240}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           {value ? (
             <span className="flex items-center gap-1 text-sm text-fg">
               <Hash className="h-3.5 w-3.5 text-faint" />
@@ -485,9 +515,12 @@ function nextMonday(): Date {
 export function DatePicker({
   value,
   onChange,
+  full,
 }: {
   value: string | null;
   onChange: (d: string | null) => void;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const presets: { label: string; date: string | null }[] = [
     { label: "Today", date: toISODate(TODAY) },
@@ -498,9 +531,9 @@ export function DatePicker({
   ];
   return (
     <Popover
-      width={230}
+      width={full ? Math.max(230, 300) : 230}
       trigger={({ toggle }) => (
-        <TriggerButton toggle={toggle}>
+        <TriggerButton toggle={toggle} className={full ? FIELD : undefined}>
           <DueBadge date={value} />
         </TriggerButton>
       )}

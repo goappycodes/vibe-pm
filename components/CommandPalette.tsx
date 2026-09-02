@@ -41,7 +41,7 @@ export function CommandPalette() {
   const projects = useStore((s) => s.projects);
   const members = useStore((s) => s.members);
   const openDetail = useStore((s) => s.openDetail);
-  const addTask = useStore((s) => s.addTask);
+  const setNewTaskOpen = useStore((s) => s.setNewTaskOpen);
   const addProject = useStore((s) => s.addProject);
   const addMember = useStore((s) => s.addMember);
   const runningTimer = useStore((s) => s.runningTimer);
@@ -161,10 +161,7 @@ export function CommandPalette() {
         label: "Create new task",
         icon: <Plus className="h-4 w-4" />,
         group: "Actions",
-        run: () => {
-          const id = addTask({ title: "Untitled task" });
-          openDetail(id);
-        },
+        run: () => setNewTaskOpen(true),
       },
       {
         id: "new-project",
@@ -254,7 +251,7 @@ export function CommandPalette() {
     projects,
     members,
     router,
-    addTask,
+    setNewTaskOpen,
     addProject,
     addMember,
     openDetail,

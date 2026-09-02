@@ -65,6 +65,24 @@ export interface RunningTimer {
   startedAt: number; // epoch ms
 }
 
+const LAST_PROJECT_KEY = "vibe-last-project";
+function loadLastProject(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(LAST_PROJECT_KEY);
+  } catch {
+    return null;
+  }
+}
+function saveLastProject(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, id);
+  } catch {
+    /* private mode — the default just won't survive a reload */
+  }
+}
+
 const TIMER_KEY = "vibe-running-timer";
 function loadTimer(): RunningTimer | null {
   if (typeof window === "undefined") return null;
@@ -116,6 +134,10 @@ interface State {
   selectedTaskIds: string[];
   detailTaskId: string | null;
   commandOpen: boolean;
+  /** New-task dialog, opened from the topbar, ⌘K, or the c shortcut. */
+  newTaskOpen: boolean;
+  /** Project used for the last task created here — the sane default. */
+  lastProjectId: string | null;
 
   memberById: (id: string | null | undefined) => TeamMember | undefined;
   projectById: (id: string | null | undefined) => Project | undefined;
@@ -181,6 +203,8 @@ interface State {
   openDetail: (id: string) => void;
   closeDetail: () => void;
   setCommandOpen: (open: boolean) => void;
+  setNewTaskOpen: (open: boolean) => void;
+  defaultProjectId: () => string;
   setCurrentUserByEmail: (email: string) => void;
 }
 
@@ -289,7 +313,20 @@ export const useStore = create<State>((set, get) => ({
   selectedTaskIds: [],
   detailTaskId: null,
   commandOpen: false,
+  newTaskOpen: false,
+  lastProjectId: loadLastProject(),
   runningTimer: loadTimer(),
+
+  // Which project a new task belongs to when the caller didn't say: the
+  // project currently filtered to, else the last one you filed under. Never
+  // silently the first in the list — that posted to the wrong Slack channel.
+  defaultProjectId: () => {
+    const s = get();
+    if (s.activeProject !== "all") return s.activeProject;
+    if (s.lastProjectId && s.projects.some((p) => p.id === s.lastProjectId))
+      return s.lastProjectId;
+    return "";
+  },
 
   memberById: (id) => get().members.find((m) => m.id === id),
   projectById: (id) => get().projects.find((p) => p.id === id),
@@ -513,12 +550,7 @@ export const useStore = create<State>((set, get) => ({
     const state = get();
     const task: Task = {
       id,
-      project_id:
-        partial.project_id ??
-        (state.activeProject !== "all"
-          ? state.activeProject
-          : state.projects[0]?.id) ??
-        "",
+      project_id: partial.project_id ?? get().defaultProjectId(),
       title: partial.title,
       description: partial.description ?? "",
       assignee_id: partial.assignee_id ?? state.currentUserId,
@@ -534,6 +566,10 @@ export const useStore = create<State>((set, get) => ({
       updated_at: now,
     };
     set({ tasks: [task, ...state.tasks] });
+    if (task.project_id) {
+      set({ lastProjectId: task.project_id });
+      saveLastProject(task.project_id);
+    }
     upsertRows("tasks", [task]);
     return id;
   },
@@ -977,6 +1013,7 @@ export const useStore = create<State>((set, get) => ({
   openDetail: (id) => set({ detailTaskId: id }),
   closeDetail: () => set({ detailTaskId: null }),
   setCommandOpen: (open) => set({ commandOpen: open }),
+  setNewTaskOpen: (open) => set({ newTaskOpen: open }),
   setCurrentUserByEmail: (email) =>
     set((state) => {
       const m = state.members.find(

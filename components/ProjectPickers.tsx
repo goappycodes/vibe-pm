@@ -20,10 +20,13 @@ export function ProjectStatusPicker({
   value,
   onChange,
   disabled,
+  full,
 }: {
   value: Project["status"];
   onChange: (s: Project["status"]) => void;
   disabled?: boolean;
+  /** Render as a full-width form field instead of an inline chip. */
+  full?: boolean;
 }) {
   const meta = PROJECT_STATUS.find((s) => s.v === value) ?? PROJECT_STATUS[0];
   if (disabled) {
@@ -36,13 +39,17 @@ export function ProjectStatusPicker({
   }
   return (
     <Popover
-      width={150}
-      align="end"
+      width={full ? 300 : 150}
+      align={full ? "start" : "end"}
       trigger={({ toggle }) => (
         <button
           type="button"
           onClick={toggle}
-          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors hover:bg-surface-2"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors hover:bg-surface-2",
+            full &&
+              "w-full justify-start rounded-lg border border-border bg-surface px-2.5 py-2"
+          )}
         >
           <span className={cn("h-2 w-2 rounded-full", meta.dot)} />
           <span className={meta.text}>{meta.label}</span>

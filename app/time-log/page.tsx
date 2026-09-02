@@ -238,7 +238,7 @@ function ComboInput({
           <div
             ref={panelRef}
             style={{ top: pos.top, left: pos.left, width: pos.width }}
-            className="fixed z-50 max-h-72 overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-pop animate-scale-in"
+            className="fixed z-[80] max-h-72 overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-pop animate-scale-in"
           >
             {matches.length === 0 ? (
               <div className="px-3 py-2 text-xs text-faint">{emptyLabel}</div>

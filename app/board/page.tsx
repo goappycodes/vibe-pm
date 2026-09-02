@@ -400,11 +400,7 @@ function Column({
   const submit = () => {
     const title = draft.trim();
     if (!title) return;
-    addTask({
-      title,
-      status,
-      project_id: activeProject !== "all" ? activeProject : projects[0]?.id,
-    });
+    addTask({ title, status });
     setDraft("");
     inputRef.current?.focus();
   };

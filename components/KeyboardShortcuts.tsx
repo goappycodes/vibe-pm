@@ -37,8 +37,7 @@ const HELP: { keys: string[]; label: string }[] = [
 
 export function KeyboardShortcuts() {
   const router = useRouter();
-  const addTask = useStore((s) => s.addTask);
-  const openDetail = useStore((s) => s.openDetail);
+  const setNewTaskOpen = useStore((s) => s.setNewTaskOpen);
   const setCommandOpen = useStore((s) => s.setCommandOpen);
   const [helpOpen, setHelpOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -90,8 +89,7 @@ export function KeyboardShortcuts() {
 
       if (e.key === "c") {
         e.preventDefault();
-        const id = addTask({ title: "Untitled task" });
-        openDetail(id);
+        setNewTaskOpen(true);
         return;
       }
 
@@ -115,7 +113,7 @@ export function KeyboardShortcuts() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [router, addTask, openDetail, setCommandOpen, helpOpen]);
+  }, [router, setNewTaskOpen, setCommandOpen, helpOpen]);
 
   if (!helpOpen || !mounted) return null;
 
