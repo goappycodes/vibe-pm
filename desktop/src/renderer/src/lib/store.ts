@@ -88,6 +88,10 @@ interface State {
 
   taskById: (id: string | null | undefined) => Task | undefined;
 
+  // Create a task (assigned to me) and add it to the pickable list. Returns the
+  // new task id, or null on failure.
+  addTask: (input: { title: string; projectId: string }) => Promise<string | null>;
+
   startTimer: (taskId: string) => void;
   stopTimer: () => void; // logs the worked segment
   discardTimer: () => void; // stops without logging
@@ -393,6 +397,48 @@ export const useStore = create<State>((set, get) => ({
   },
 
   taskById: (id) => get().tasks.find((t) => t.id === id),
+
+  addTask: async ({ title, projectId }) => {
+    const me = get().me;
+    const t = title.trim();
+    if (!me || !t || !projectId) return null;
+    const id = genId("t");
+    const now = new Date().toISOString();
+    // Mirror the columns the web app's addTask writes so the row is complete.
+    const { error } = await supabase.from("tasks").insert({
+      id,
+      project_id: projectId,
+      title: t,
+      description: "",
+      assignee_id: me.id,
+      due_date: null,
+      story_points: null,
+      status: "todo",
+      urgency: "medium",
+      order: 0,
+      created_by: me.id,
+      completed_at: null,
+      created_at: now,
+      updated_at: now,
+    });
+    if (error) {
+      console.error("[tasks] insert:", error.message);
+      return null;
+    }
+    // Make it immediately pickable without a full reload.
+    const task: Task = {
+      id,
+      project_id: projectId,
+      title: t,
+      assignee_id: me.id,
+      due_date: null,
+      story_points: null,
+      status: "todo",
+      urgency: "medium",
+    };
+    set({ tasks: [task, ...get().tasks] });
+    return id;
+  },
 
   startTimer: (taskId) => {
     if (get().timer) get().stopTimer();

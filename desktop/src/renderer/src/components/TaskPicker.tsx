@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Coffee, Play, Search } from "lucide-react";
+import { Coffee, Play, Plus, Search, X } from "lucide-react";
 import { useStore } from "../lib/store";
-import { orderPickerTasks, type Task } from "../lib/types";
+import { orderPickerTasks, type Project, type Task } from "../lib/types";
 
 const PROJECT_DOT: Record<string, string> = {
   indigo: "#6366f1",
@@ -21,6 +21,7 @@ export function TaskPicker() {
   const startTimer = useStore((s) => s.startTimer);
   const startBreak = useStore((s) => s.startBreak);
   const [q, setQ] = useState("");
+  const [showNew, setShowNew] = useState(false);
   const [showAll, setShowAll] = useState(() => {
     try {
       return localStorage.getItem(SHOW_ALL_KEY) === "1";
@@ -82,13 +83,23 @@ export function TaskPicker() {
     );
   };
 
+  if (showNew)
+    return <NewTaskForm defaultTitle={q} onClose={() => setShowNew(false)} />;
+
   return (
     <div className="screen">
       <div className="picker-head">
-        <div>
+        <div style={{ flex: 1 }}>
           <h1>What are you working on?</h1>
           <p className="muted small">Pick a task — the timer starts right away.</p>
         </div>
+        <button
+          className="icon-btn"
+          title="New task"
+          onClick={() => setShowNew(true)}
+        >
+          <Plus className="icon" />
+        </button>
       </div>
 
       <label className="switch-row" title="Include tasks not assigned to you">
@@ -136,16 +147,23 @@ export function TaskPicker() {
         )}
         {rest.map(item)}
         {filtered.length === 0 && (
-          <p
-            className="faint small"
-            style={{ textAlign: "center", padding: "28px 0" }}
-          >
-            {source.length === 0
-              ? showAll
-                ? "No open tasks found."
-                : "No open tasks assigned to you — try “all tasks”."
-              : "No tasks match your search."}
-          </p>
+          <div style={{ textAlign: "center", padding: "28px 0" }}>
+            <p className="faint small">
+              {source.length === 0
+                ? showAll
+                  ? "No open tasks found."
+                  : "No open tasks assigned to you — try “all tasks”."
+                : "No tasks match your search."}
+            </p>
+            <button
+              className="btn btn-ghost"
+              style={{ marginTop: 10 }}
+              onClick={() => setShowNew(true)}
+            >
+              <Plus className="icon" />
+              {query ? `Create “${q.trim()}”` : "New task"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -161,6 +179,118 @@ export function TaskPicker() {
           onClick={() => startBreak("short")}
         >
           <Coffee className="icon" /> Take a break instead
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NewTaskForm({
+  defaultTitle,
+  onClose,
+}: {
+  defaultTitle: string;
+  onClose: () => void;
+}) {
+  const projectsById = useStore((s) => s.projectsById);
+  const addTask = useStore((s) => s.addTask);
+  const startTimer = useStore((s) => s.startTimer);
+  const projects = useMemo(
+    () =>
+      (Object.values(projectsById) as Project[]).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
+    [projectsById]
+  );
+  const [title, setTitle] = useState(defaultTitle);
+  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const valid = title.trim().length > 0 && !!projectId;
+
+  const create = async (start: boolean) => {
+    if (!valid || saving) return;
+    setSaving(true);
+    setError(null);
+    const id = await addTask({ title, projectId });
+    setSaving(false);
+    if (!id) {
+      setError("Couldn't create the task. Please try again.");
+      return;
+    }
+    if (start) startTimer(id);
+    onClose();
+  };
+
+  return (
+    <div className="form-overlay">
+      <div className="form-head">
+        <h1>New task</h1>
+        <button className="icon-btn" onClick={onClose} title="Close">
+          <X className="icon" />
+        </button>
+      </div>
+      <p className="muted small" style={{ marginBottom: 12 }}>
+        Adds a task assigned to you — start timing it now or just add it to your
+        list.
+      </p>
+
+      {projects.length === 0 ? (
+        <p className="faint small">
+          No projects yet. Create a project in the web app first.
+        </p>
+      ) : (
+        <div className="fields">
+          <label className="field">
+            <span>Title</span>
+            <input
+              className="input"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What needs doing?"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void create(true);
+              }}
+            />
+          </label>
+          <label className="field">
+            <span>Project</span>
+            <select
+              className="input"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {error && (
+            <p className="small" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="row" style={{ marginTop: 14 }}>
+        <button
+          className="btn"
+          onClick={() => void create(false)}
+          disabled={!valid || saving}
+        >
+          Add to list
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => void create(true)}
+          disabled={!valid || saving}
+        >
+          {saving ? "Creating…" : "Create & start"}
         </button>
       </div>
     </div>
