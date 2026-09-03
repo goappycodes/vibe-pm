@@ -55,13 +55,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "bad json" }, { status: 400 });
   }
 
-  // The real standup channel is set via env (SLACK_STANDUP_CHANNEL, ideally a
-  // channel ID the bot is in); the client's hint and a "standups" default are
-  // fallbacks for local/dry-run use. Project messages carry their own channel.
-  const fallbackChannel = (hint: unknown) =>
-    process.env.SLACK_STANDUP_CHANNEL ||
-    (typeof hint === "string" && hint) ||
-    "standups";
+  // Where the team-wide update goes. Config (SLACK_STANDUP_CHANNEL) and the
+  // client's hint both feed in, but a channel **id** always wins: names only
+  // resolve for public channels the bot can see, and a renamed or private
+  // channel then fails with channel_not_found. Ids always resolve.
+  const isId = (v: unknown): v is string =>
+    typeof v === "string" && /^[CG][A-Z0-9]{6,}$/.test(v);
+  const fallbackChannel = (hint: unknown) => {
+    const env = process.env.SLACK_STANDUP_CHANNEL;
+    if (isId(env)) return env;
+    if (isId(hint)) return hint;
+    return env || (typeof hint === "string" && hint) || "standups";
+  };
 
   // Batch form: [{ text, channel? }, …] — the team channel plus one per project.
   if (Array.isArray(body.messages)) {

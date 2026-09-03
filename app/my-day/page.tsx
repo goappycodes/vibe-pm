@@ -253,7 +253,10 @@ function TodayPlan() {
   const [projectPosts, setProjectPosts] = useState<ProjectStandup[]>([]);
 
   const channelName =
-    channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+    // Prefer the id — a name only resolves for public channels.
+    channels.find((c) => /standup/i.test(c.name))?.id ??
+    channels.find((c) => /standup/i.test(c.name))?.name ??
+    "standups";
 
   const inProgressTasks = planTasks.filter(
     (t) => t.status !== "done" && t.status !== "blocked"

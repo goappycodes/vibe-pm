@@ -165,7 +165,10 @@ export default function UpdatesPage() {
     setPosting(true);
     setPostMsg(null);
     const hint =
-      channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+      // Prefer the id — a name only resolves for public channels.
+    channels.find((c) => /standup/i.test(c.name))?.id ??
+    channels.find((c) => /standup/i.test(c.name))?.name ??
+    "standups";
     // Each project involved also hears about its own tasks, in its channel.
     const perProject = composeProjectStandups({
       memberName: currentUser?.name,
