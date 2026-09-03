@@ -2,7 +2,12 @@
 
 import { Avatar } from "@/components/Avatar";
 import { MenuItem, Popover } from "@/components/Popover";
-import { postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
+import {
+  composeProjectStandups,
+  postStandupMessages,
+  useTodayPlan,
+} from "@/lib/dayPlan";
+import { slackChannelFor } from "@/lib/slack/channel";
 import { useStore } from "@/lib/store";
 import { STATUS_META, type Task, type UpdateSource } from "@/lib/types";
 import { cn, formatDuration } from "@/lib/utils";
@@ -52,6 +57,7 @@ export default function UpdatesPage() {
   const addUpdate = useStore((s) => s.addUpdate);
   const removeUpdate = useStore((s) => s.removeUpdate);
   const channels = useStore((s) => s.settings.slack.channels);
+  const projectById = useStore((s) => s.projectById);
   const timeLogs = useStore((s) => s.timeLogs);
   const plan = useTodayPlan();
   const minutesLogged = timeLogs
@@ -61,6 +67,13 @@ export default function UpdatesPage() {
   const [completed, setCompleted] = useState("");
   const [inProgress, setInProgress] = useState("");
   const [blockers, setBlockers] = useState("");
+  // Lines can be typed freehand, so remember which tasks were actually
+  // inserted — those are the ones a project channel can be told about.
+  const [picked, setPicked] = useState<{
+    done: Task[];
+    inProgress: Task[];
+    blocked: Task[];
+  }>({ done: [], inProgress: [], blocked: [] });
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState<string | null>(null);
 
@@ -104,9 +117,15 @@ export default function UpdatesPage() {
 
   const appendTask = (
     setter: React.Dispatch<React.SetStateAction<string>>,
-    title: string
+    bucket: "done" | "inProgress" | "blocked",
+    task: Task
   ) => {
-    const line = `• ${title}`;
+    setPicked((p) =>
+      p[bucket].some((t) => t.id === task.id)
+        ? p
+        : { ...p, [bucket]: [...p[bucket], task] }
+    );
+    const line = `• ${task.title}`;
     setter((v) => {
       const trimmed = v.replace(/\s+$/, "");
       if (trimmed.split("\n").some((l) => l.trim() === line)) return v;
@@ -117,15 +136,17 @@ export default function UpdatesPage() {
   const generateFromPlan = () => {
     const listOf = (items: typeof plan.planTasks) =>
       items.map((t) => `• ${t.title}`).join("\n");
+    const active = plan.planTasks.filter(
+      (t) => t.status !== "done" && t.status !== "blocked"
+    );
     setCompleted(listOf(plan.doneTasks));
     setBlockers(listOf(plan.blockedTasks));
-    setInProgress(
-      listOf(
-        plan.planTasks.filter(
-          (t) => t.status !== "done" && t.status !== "blocked"
-        )
-      )
-    );
+    setInProgress(listOf(active));
+    setPicked({
+      done: plan.doneTasks,
+      inProgress: active,
+      blocked: plan.blockedTasks,
+    });
   };
 
   const post = async () => {
@@ -145,19 +166,42 @@ export default function UpdatesPage() {
     setPostMsg(null);
     const hint =
       channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
-    const res = await postStandupToSlack(slackText, hint);
-    addUpdate(feedText, res.ok ? "slack" : "ui");
+    // Each project involved also hears about its own tasks, in its channel.
+    const perProject = composeProjectStandups({
+      memberName: currentUser?.name,
+      today: plan.today,
+      groups: {
+        doneTasks: picked.done,
+        inProgress: picked.inProgress,
+        blockedTasks: picked.blocked,
+      },
+      projectOf: (id) => {
+        const p = projectById(id);
+        return p ? { name: p.name, channel: slackChannelFor(p) } : undefined;
+      },
+    });
+    const [res, ...projectResults] = await postStandupMessages([
+      { text: slackText, channel: hint },
+      ...perProject.map((p) => ({ text: p.text, channel: p.channel })),
+    ]);
+    addUpdate(feedText, res?.ok ? "slack" : "ui");
+    const alsoPosted = projectResults.filter((r) => r?.ok).length;
     setPostMsg(
-      res.ok
-        ? `Posted to ${res.channel ?? "Slack"} ✓`
-        : res.dryRun
+      res?.ok
+        ? `Posted to ${res.channel ?? "Slack"}${
+            alsoPosted
+              ? ` + ${alsoPosted} project channel${alsoPosted === 1 ? "" : "s"}`
+              : ""
+          } ✓`
+        : res?.dryRun
           ? "Saved — Slack not connected yet"
-          : `Saved — Slack error${res.error ? `: ${res.error}` : ""}`
+          : `Saved — Slack error${res?.error ? `: ${res.error}` : ""}`
     );
     setPosting(false);
     setCompleted("");
     setInProgress("");
     setBlockers("");
+    setPicked({ done: [], inProgress: [], blocked: [] });
   };
 
   const sorted = useMemo(
@@ -212,7 +256,7 @@ export default function UpdatesPage() {
               action={
                 <TaskPickerButton
                   tasks={myTasks}
-                  onPick={(t) => appendTask(setCompleted, t.title)}
+                  onPick={(t) => appendTask(setCompleted, "done", t)}
                 />
               }
             />
@@ -224,7 +268,7 @@ export default function UpdatesPage() {
               action={
                 <TaskPickerButton
                   tasks={myTasks}
-                  onPick={(t) => appendTask(setInProgress, t.title)}
+                  onPick={(t) => appendTask(setInProgress, "inProgress", t)}
                 />
               }
             />
@@ -236,7 +280,7 @@ export default function UpdatesPage() {
               action={
                 <TaskPickerButton
                   tasks={myTasks}
-                  onPick={(t) => appendTask(setBlockers, t.title)}
+                  onPick={(t) => appendTask(setBlockers, "blocked", t)}
                 />
               }
             />

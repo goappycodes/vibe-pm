@@ -115,11 +115,97 @@ export function composeStandup(opts: {
   return parts.join("\n\n");
 }
 
+/** The three buckets a standup splits into, as tasks rather than text. */
+export interface StandupGroups {
+  doneTasks: Task[];
+  inProgress: Task[];
+  blockedTasks: Task[];
+}
+
+export interface ProjectStandup {
+  projectId: string;
+  projectName: string;
+  channel: string;
+  taskCount: number;
+  text: string;
+}
+
+/**
+ * The same update, split per project, for posting into each project's own
+ * channel. The team channel gets the whole picture; a project channel only
+ * wants its own lines — but always with the person's name on top, since it
+ * lands among everyone else's chatter.
+ *
+ * Projects without a Slack channel are skipped: there is nowhere to post.
+ */
+export function composeProjectStandups(opts: {
+  memberName: string | undefined;
+  today: string;
+  groups: StandupGroups;
+  projectOf: (
+    projectId: string
+  ) => { name: string; channel: string | null } | undefined;
+}): ProjectStandup[] {
+  const { memberName, today, groups, projectOf } = opts;
+
+  let dateLabel = today;
+  try {
+    dateLabel = format(parseISO(today), "EEE, MMM d");
+  } catch {
+    /* keep ISO fallback */
+  }
+
+  const byProject = new Map<string, StandupGroups>();
+  const bucket = (id: string) => {
+    let g = byProject.get(id);
+    if (!g) {
+      g = { doneTasks: [], inProgress: [], blockedTasks: [] };
+      byProject.set(id, g);
+    }
+    return g;
+  };
+  groups.doneTasks.forEach((t) => bucket(t.project_id).doneTasks.push(t));
+  groups.inProgress.forEach((t) => bucket(t.project_id).inProgress.push(t));
+  groups.blockedTasks.forEach((t) =>
+    bucket(t.project_id).blockedTasks.push(t)
+  );
+
+  const out: ProjectStandup[] = [];
+  for (const [projectId, g] of byProject) {
+    const project = projectOf(projectId);
+    if (!project?.channel) continue;
+    const count =
+      g.doneTasks.length + g.inProgress.length + g.blockedTasks.length;
+    if (!count) continue;
+
+    const list = (items: Task[]) =>
+      items.map((t) => `• ${t.title}`).join("\n");
+    const parts: string[] = [
+      `*${memberName ?? "Someone"}* — daily update · ${dateLabel} · *${project.name}*`,
+    ];
+    if (g.doneTasks.length) parts.push(`✅ Completed\n${list(g.doneTasks)}`);
+    if (g.inProgress.length)
+      parts.push(`🔨 Planned / in progress\n${list(g.inProgress)}`);
+    if (g.blockedTasks.length)
+      parts.push(`🚧 Blockers\n${list(g.blockedTasks)}`);
+
+    out.push({
+      projectId,
+      projectName: project.name,
+      channel: project.channel,
+      taskCount: count,
+      text: parts.join("\n\n"),
+    });
+  }
+  return out.sort((a, b) => a.projectName.localeCompare(b.projectName));
+}
+
 export type StandupPostResult = {
   ok: boolean;
   dryRun?: boolean;
   error?: string;
   channel?: string;
+  duplicate?: boolean;
 };
 
 /** Post standup text to the team's Slack standup channel via the server route. */
@@ -127,14 +213,31 @@ export async function postStandupToSlack(
   text: string,
   channel?: string
 ): Promise<StandupPostResult> {
+  const [only] = await postStandupMessages([{ text, channel }]);
+  return only ?? { ok: false, error: "network" };
+}
+
+/**
+ * Post several standup messages in one request — the team channel plus one
+ * per project. The route dedupes each (channel, text) pair, so a double
+ * submit can't double-post any of them.
+ */
+export async function postStandupMessages(
+  messages: { text: string; channel?: string }[]
+): Promise<StandupPostResult[]> {
+  if (!messages.length) return [];
   try {
     const res = await fetch("/api/slack/standup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, channel }),
+      body: JSON.stringify({ messages }),
     });
-    return (await res.json()) as StandupPostResult;
+    const body = (await res.json()) as
+      | { results?: StandupPostResult[] }
+      | StandupPostResult;
+    if ("results" in body && Array.isArray(body.results)) return body.results;
+    return [body as StandupPostResult];
   } catch {
-    return { ok: false, error: "network" };
+    return messages.map(() => ({ ok: false, error: "network" }));
   }
 }

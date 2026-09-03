@@ -4,7 +4,14 @@ import { DayPlanPicker } from "@/components/DayPlanPicker";
 import { PointsBadge } from "@/components/Badges";
 import { ProjectPicker, StatusPicker } from "@/components/Pickers";
 import { TaskRow } from "@/components/TaskRow";
-import { composeStandup, postStandupToSlack, useTodayPlan } from "@/lib/dayPlan";
+import {
+  composeProjectStandups,
+  composeStandup,
+  postStandupMessages,
+  useTodayPlan,
+  type ProjectStandup,
+} from "@/lib/dayPlan";
+import { slackChannelFor } from "@/lib/slack/channel";
 import { useStore } from "@/lib/store";
 import type { Task } from "@/lib/types";
 import { URGENCY_META } from "@/lib/types";
@@ -243,9 +250,27 @@ function TodayPlan() {
   const [posting, setPosting] = useState(false);
   const [postMsg, setPostMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [projectPosts, setProjectPosts] = useState<ProjectStandup[]>([]);
 
   const channelName =
     channels.find((c) => /standup/i.test(c.name))?.name ?? "standups";
+
+  const inProgressTasks = planTasks.filter(
+    (t) => t.status !== "done" && t.status !== "blocked"
+  );
+
+  // One message per project involved, each naming the person, for the
+  // project's own channel — the team channel still gets the full picture.
+  const buildProjectStandups = () =>
+    composeProjectStandups({
+      memberName: currentUser?.name,
+      today,
+      groups: { doneTasks, inProgress: inProgressTasks, blockedTasks },
+      projectOf: (id) => {
+        const p = projectById(id);
+        return p ? { name: p.name, channel: slackChannelFor(p) } : undefined;
+      },
+    });
 
   const buildStandup = () =>
     composeStandup({
@@ -265,18 +290,32 @@ function TodayPlan() {
     setPosting(true);
     setPostMsg(null);
     const text = preview ?? buildStandup();
-    const res = await postStandupToSlack(text, channelName);
+    const perProject = projectPosts.length
+      ? projectPosts
+      : buildProjectStandups();
+    const [teamResult, ...projectResults] = await postStandupMessages([
+      { text, channel: channelName },
+      ...perProject.map((p) => ({ text: p.text, channel: p.channel })),
+    ]);
     // Record it in the updates feed either way; tag the source by what happened.
-    addUpdate(text, res.ok ? "slack" : "ui");
+    addUpdate(text, teamResult?.ok ? "slack" : "ui");
+    const alsoPosted = projectResults.filter((r) => r?.ok).length;
     setPostMsg(
-      res.ok
-        ? `Posted to ${res.channel ?? "Slack"} ✓`
-        : res.dryRun
+      teamResult?.ok
+        ? `Posted to ${teamResult.channel ?? "Slack"}${
+            alsoPosted
+              ? ` + ${alsoPosted} project channel${alsoPosted === 1 ? "" : "s"}`
+              : ""
+          } ✓`
+        : teamResult?.dryRun
           ? "Saved to updates — Slack not connected yet"
-          : `Saved to updates — Slack error${res.error ? `: ${res.error}` : ""}`
+          : `Saved to updates — Slack error${
+              teamResult?.error ? `: ${teamResult.error}` : ""
+            }`
     );
     setPosting(false);
     setPreview(null);
+    setProjectPosts([]);
   };
 
   return (
@@ -376,6 +415,7 @@ function TodayPlan() {
             onClick={() => {
               setPostMsg(null);
               setPreview(buildStandup());
+              setProjectPosts(buildProjectStandups());
             }}
             className="btn-primary shrink-0 gap-1.5 text-xs"
             title="Preview and post this plan as your daily update to Slack"
@@ -399,9 +439,36 @@ function TodayPlan() {
           <pre className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-3 text-xs leading-relaxed text-fg">
             {preview}
           </pre>
+
+          {projectPosts.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <div className="text-[11px] text-faint">
+                Each project also gets its own tasks, in its channel:
+              </div>
+              {projectPosts.map((p) => (
+                <details
+                  key={p.projectId}
+                  className="rounded-lg border border-border bg-surface-2/60 px-2.5 py-1.5"
+                >
+                  <summary className="cursor-pointer text-[11px] text-muted">
+                    <span className="font-medium text-fg">
+                      {p.channel.startsWith("C") ? p.projectName : `#${p.channel}`}
+                    </span>{" "}
+                    · {p.taskCount} task{p.taskCount === 1 ? "" : "s"}
+                  </summary>
+                  <pre className="mt-1.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-muted">
+                    {p.text}
+                  </pre>
+                </details>
+              ))}
+            </div>
+          )}
           <div className="mt-2 flex items-center justify-end gap-2">
             <button
-              onClick={() => setPreview(null)}
+              onClick={() => {
+                setPreview(null);
+                setProjectPosts([]);
+              }}
               disabled={posting}
               className="btn-ghost text-xs text-muted disabled:opacity-40"
             >
