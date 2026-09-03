@@ -1,13 +1,31 @@
-# Authentication (magic link)
+# Authentication (password or magic link)
 
-Team members sign in with their **email** via Supabase Auth (passwordless magic
-link). The app is gated: no session → login page; session → app, with the
-current user mapped to the `team_members` row whose email matches.
+Team members sign in with their **email**, either way:
+
+- **Password** — `signInWithPassword`. Fast, no inbox round-trip.
+- **Magic link** — `signInWithOtp`, the original flow. Also the way in when
+  someone has no password yet or has forgotten it.
+
+Both sit on one screen ([components/LoginPage.tsx](components/LoginPage.tsx)):
+email, password, **Sign in**, then an **Email me a magic link** button below.
+Enter does the obvious thing — password if one is typed, magic link if not.
+
+## Setting a password
+
+Anyone can set or change their own under **Settings → Account**
+([components/AccountCard.tsx](components/AccountCard.tsx)) — it calls
+`auth.updateUser({ password })` on the signed-in session, so no admin and no
+reset email are involved. New members therefore start with the magic link,
+then set a password if they want one. Forgotten passwords take the same route:
+sign in with the link, set a new one. Minimum 8 characters, confirmed twice.
 
 ## How it works
 
 - `lib/supabase/client.ts` enables `persistSession` + `detectSessionInUrl`.
-- `components/LoginPage.tsx` calls `supabase.auth.signInWithOtp({ email })`.
+- `components/LoginPage.tsx` offers both `signInWithPassword` and
+  `signInWithOtp({ email })` on one screen.
+- `components/AccountCard.tsx` (Settings → Account) sets a password for the
+  signed-in user.
 - `components/AppShell.tsx` checks the session (`getSession` + `onAuthStateChange`):
   shows a loader while checking, the login page if signed out, the app if signed
   in. Hydration/realtime only run once signed in.

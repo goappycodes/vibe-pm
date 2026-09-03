@@ -1,4 +1,6 @@
 "use client";
+
+import { AccountCard } from "@/components/AccountCard";
 import { EditableText } from "@/components/EditableText";
 
 import { MenuItem, Popover } from "@/components/Popover";
@@ -253,6 +255,9 @@ export default function SettingsPage() {
         </section>
 
         {isAdmin && <AlertsCard />}
+
+        {/* every role can set their own password */}
+        <AccountCard />
       </div>
     </div>
   );
