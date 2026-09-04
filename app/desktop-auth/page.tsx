@@ -1,5 +1,6 @@
 "use client";
 
+import { isTeamEmail } from "@/lib/auth/accounts";
 import { supabase } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import {
@@ -85,6 +86,16 @@ function DesktopAuthInner() {
     if (!addr || !supabase) return;
     setLoading(true);
     setError(null);
+    // Only team members get a link — it would otherwise create an account for
+    // whatever address was typed.
+    const { known } = await isTeamEmail(addr);
+    if (!known) {
+      setLoading(false);
+      setError(
+        `${addr} isn't on the team yet. Ask an admin to add you in Vibe PM, then try again.`
+      );
+      return;
+    }
     // Return to THIS page (with port+state intact) after the magic link.
     const { error } = await supabase.auth.signInWithOtp({
       email: addr,

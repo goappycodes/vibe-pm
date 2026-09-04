@@ -10,6 +10,16 @@ Both sit on one screen ([components/LoginPage.tsx](components/LoginPage.tsx)):
 email, password, **Sign in**, then an **Email me a magic link** button below.
 Enter does the obvious thing — password if one is typed, magic link if not.
 
+## Only team members get a link
+
+A magic link **creates the account on the spot**, so before sending one the app
+checks the address against `team_members` (`isTeamEmail` in
+[lib/auth/accounts.ts](lib/auth/accounts.ts)). An address nobody has added gets
+"…isn't on the team yet. Ask an admin to add you under Team" and no email is
+sent. The same guard covers the desktop sign-in bridge (`/desktop-auth`). If the
+lookup itself fails (offline, PostgREST down) the sign-in is allowed through
+rather than locking out a real member.
+
 ## Setting a password
 
 Anyone can set or change their own under **Settings → Account**
@@ -19,6 +29,35 @@ reset email are involved. New members therefore start with the magic link,
 then set a password if they want one. Forgotten passwords take the same route:
 sign in with the link, set a new one. Minimum 8 characters, confirmed twice.
 
+## Admins managing members
+
+**Team → pencil** opens [components/MemberDialog.tsx](components/MemberDialog.tsx),
+where an admin edits a member's name, email, role, lead, Slack user ID and
+timezone, and can set their password. **Add member** uses the same dialog, so a
+member arrives with details filled in rather than as an empty row.
+
+Name, role and the rest are ordinary `team_members` writes. The two fields that
+also live in Supabase Auth go through **`POST /api/admin/users`**
+([app/api/admin/users/route.ts](app/api/admin/users/route.ts)), which holds the
+service-role key:
+
+- `action: "lookup"` — does this address have a sign-in account, and when did it
+  last sign in? (Shown in the dialog.)
+- `action: "save"` — moves the auth account to a new address (`email_confirm`, so
+  no confirmation email), sets a password, or **creates** the account outright
+  when the member has never signed in. That last case is how an admin hands
+  someone a working password without any email round-trip.
+
+Every request carries the caller's session token; the route re-reads their
+`team_members` row server-side and refuses anyone who isn't an admin — being
+signed in is not enough. Email is deliberately **not** editable inline on the
+Team page: it is also the sign-in address, so it has to move the auth account
+with it.
+
+Note that removing a member deletes their `team_members` row but leaves their
+auth account, so revoking access still means deleting the user in the Supabase
+dashboard.
+
 ## How it works
 
 - `lib/supabase/client.ts` enables `persistSession` + `detectSessionInUrl`.
@@ -26,6 +65,11 @@ sign in with the link, set a new one. Minimum 8 characters, confirmed twice.
   `signInWithOtp({ email })` on one screen.
 - `components/AccountCard.tsx` (Settings → Account) sets a password for the
   signed-in user.
+- `app/api/admin/users/route.ts` + `lib/auth/accounts.ts` are the admin path:
+  address changes, password sets and account creation, admin-checked server-side.
+  It needs `SUPABASE_SERVICE_ROLE_KEY` on the server (already required by the
+  daily-alerts route) — without it the route answers 501 and the profile fields
+  still save.
 - `components/AppShell.tsx` checks the session (`getSession` + `onAuthStateChange`):
   shows a loader while checking, the login page if signed out, the app if signed
   in. Hydration/realtime only run once signed in.

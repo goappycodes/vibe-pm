@@ -1,7 +1,7 @@
 "use client";
-import { EditableText } from "@/components/EditableText";
 
 import { Avatar } from "@/components/Avatar";
+import { MemberDialog } from "@/components/MemberDialog";
 import { MenuItem, Popover } from "@/components/Popover";
 import { useStore } from "@/lib/store";
 import {
@@ -11,12 +11,22 @@ import {
   type TeamMember,
 } from "@/lib/types";
 import { cn, daysFromToday } from "@/lib/utils";
-import { Check, Lock, Plus, ShieldCheck, Trash2, UserCog, Users2, X } from "lucide-react";
+import {
+  Check,
+  Lock,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  UserCog,
+  Users2,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 const COLS =
-  "grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_128px_190px_36px] items-center gap-3";
+  "grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_128px_190px_68px] items-center gap-3";
 
 const ROLE_RANK: Record<Role, number> = { admin: 0, team_lead: 1, member: 2 };
 
@@ -26,7 +36,14 @@ export default function TeamPage() {
   const currentUser = useStore((s) =>
     s.members.find((m) => m.id === s.currentUserId)
   );
-  const addMember = useStore((s) => s.addMember);
+  // Snapshot the member being edited: the dialog resets its draft whenever this
+  // changes, and a realtime update mid-edit would otherwise wipe what's typed.
+  const [editing, setEditing] = useState<TeamMember | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const openDialog = (m: TeamMember | null) => {
+    setEditing(m);
+    setDialogOpen(true);
+  };
 
   const isAdmin = currentUser?.role === "admin";
 
@@ -62,7 +79,7 @@ export default function TeamPage() {
           </div>
           {isAdmin ? (
             <button
-              onClick={() => addMember()}
+              onClick={() => openDialog(null)}
               className="btn-primary gap-1.5"
             >
               <Plus className="h-4 w-4" />
@@ -108,6 +125,7 @@ export default function TeamPage() {
                 openTasks={mine.length}
                 overdue={overdue}
                 blocked={blocked}
+                onEdit={() => openDialog(m)}
               />
             );
           })}
@@ -121,6 +139,12 @@ export default function TeamPage() {
           reports to a team lead.
         </p>
       </div>
+
+      <MemberDialog
+        open={dialogOpen}
+        member={editing}
+        onClose={() => setDialogOpen(false)}
+      />
     </div>
   );
 }
@@ -150,6 +174,7 @@ function MemberRow({
   openTasks,
   overdue,
   blocked,
+  onEdit,
 }: {
   member: TeamMember;
   editable: boolean;
@@ -157,6 +182,7 @@ function MemberRow({
   openTasks: number;
   overdue: number;
   blocked: number;
+  onEdit: () => void;
 }) {
   const updateMember = useStore((s) => s.updateMember);
   const removeMember = useStore((s) => s.removeMember);
@@ -203,15 +229,16 @@ function MemberRow({
         </div>
       </div>
 
-      {/* email */}
+      {/* email — edited in the dialog, not inline: it is also the sign-in
+          address, so changing it has to move the auth account with it. */}
       {editable ? (
-        <EditableText
-          type="email"
-          value={member.email}
-          placeholder="name@appycodes.com"
-          onCommit={(email) => updateMember(member.id, { email })}
-          className="w-full truncate rounded-md border border-transparent bg-transparent px-1.5 py-1 text-sm text-muted outline-none hover:border-border focus:border-accent focus:bg-surface-2"
-        />
+        <button
+          onClick={onEdit}
+          title="Edit email"
+          className="w-full truncate rounded-md border border-transparent px-1.5 py-1 text-left text-sm text-muted transition-colors hover:border-border hover:bg-surface-2"
+        >
+          {member.email || <span className="text-faint">Add an email</span>}
+        </button>
       ) : (
         <div className="truncate px-1.5 text-sm text-muted">
           {member.email || "—"}
@@ -228,15 +255,26 @@ function MemberRow({
       {/* reports to */}
       <LeadPicker member={member} disabled={!editable} />
 
-      {/* remove */}
-      {editable && !isSelf ? (
-        <button
-          onClick={() => removeMember(member.id)}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
-          title="Remove member"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+      {/* edit + remove */}
+      {editable ? (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onEdit}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-fg"
+            title="Edit details, email and password"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          {!isSelf && (
+            <button
+              onClick={() => removeMember(member.id)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10"
+              title="Remove member"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       ) : (
         <span />
       )}

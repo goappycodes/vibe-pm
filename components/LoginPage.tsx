@@ -1,5 +1,6 @@
 "use client";
 
+import { isTeamEmail } from "@/lib/auth/accounts";
 import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -54,6 +55,17 @@ export function LoginPage() {
     if (!addr || !supabase || busy) return;
     setBusy("link");
     setError(null);
+    // A magic link creates the account on the spot, so check the address is
+    // actually on the team first — otherwise a typo silently signs someone in
+    // as nobody.
+    const { known } = await isTeamEmail(addr);
+    if (!known) {
+      setBusy(null);
+      setError(
+        `${addr} isn't on the team yet. Ask an admin to add you under Team, then try again.`
+      );
+      return;
+    }
     const { error } = await supabase.auth.signInWithOtp({
       email: addr,
       options: { emailRedirectTo: window.location.origin },
