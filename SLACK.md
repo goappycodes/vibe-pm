@@ -28,6 +28,30 @@ app, Slack, or a script — with no app server, Vercel, or webhook involved.
 - **Turn off:** `drop trigger trg_slack_tasks on tasks;` and
   `drop trigger trg_slack_comments on comments;`
 
+## Which events post — Settings → Task notifications to Slack
+
+Admins choose which parts of a task's life are worth a Slack message. Eleven
+switches, applied across **all** projects:
+
+| Group | Switches |
+| --- | --- |
+| Task lifecycle | Created · Updated (rename / due / urgency) · Reassigned · Deleted · Comments |
+| Status changes | Moved to Backlog · To do · In progress · Blocked · In review · Done |
+
+- **Stored** in `app_settings.slack.notify` (jsonb), written by the app and read
+  by the trigger — so a switch turned off silences that event whatever door the
+  change came through, and takes effect on the next change with no redeploy.
+- **A missing key means on.** An install that has never touched these settings
+  behaves exactly as it did before they existed; the setup script seeds them
+  all-on once, then never touches them again.
+- **Nothing about the messages changes** — a suppressed event is simply not
+  sent. When one update changes several things (say a rename *and* a status
+  move) only the parts whose switches are on appear in the sentence, and an
+  update with nothing left to say posts nothing at all.
+- Quietest sensible starting point: turn off **Updated**, **Moved to To do** and
+  **Moved to In progress** — on 14 days of real traffic that alone removed about
+  a third of all messages.
+
 ## Alternative — Supabase Database Webhook → route (dormant)
 
 The same behaviour is also implemented as an app route for teams who prefer a

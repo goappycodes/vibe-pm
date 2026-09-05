@@ -28,6 +28,21 @@ const client = new pg.Client({
   ssl: { rejectUnauthorized: false },
 });
 
+// Mirrors SLACK_EVENTS in lib/types.ts. Every event on = today's behaviour.
+const DEFAULT_NOTIFY = {
+  created: true,
+  updated: true,
+  deleted: true,
+  reassigned: true,
+  comments: true,
+  status_backlog: true,
+  status_todo: true,
+  status_in_progress: true,
+  status_blocked: true,
+  status_in_review: true,
+  status_done: true,
+};
+
 const DDL = `
 create extension if not exists pg_net;
 
@@ -59,6 +74,15 @@ revoke all on private.slack_recent from anon, authenticated;
 create or replace function private.slack_dedupe_window()
 returns interval language sql immutable as $fn$
   select interval '90 seconds'
+$fn$;
+
+-- Is this event allowed to reach Slack? Admins own the switches in
+-- Settings → Task notifications to Slack, stored as
+-- public.app_settings.slack.notify. A missing key means on, so an install that
+-- has never touched them behaves exactly as it did before they existed.
+create or replace function private.slack_flag(p_notify jsonb, p_key text)
+returns boolean language sql immutable as $fn$
+  select coalesce((p_notify ->> p_key)::boolean, true)
 $fn$;
 
 -- Low-level poster: resolve a channel id/name and fire chat.postMessage.
@@ -118,17 +142,22 @@ returns trigger language plpgsql security definer
 set search_path = public, private as $fn$
 declare
   v_channel text; v_text text; v_assignee text; v_changes text[]; v_heading text;
-  v_link text; v_actor text;
+  v_link text; v_actor text; v_notify jsonb;
   st jsonb := '{"backlog":"Backlog","todo":"To do","in_progress":"In progress","blocked":"Blocked","in_review":"In review","done":"Done"}'::jsonb;
 begin
   v_channel := private.slack_channel_for(coalesce(NEW.project_id, OLD.project_id));
   if v_channel is null then return coalesce(NEW, OLD); end if;
+
+  -- The admin's switches, read once per row.
+  select coalesce(s.slack -> 'notify', '{}'::jsonb) into v_notify
+    from public.app_settings s where s.id = 1;
 
   -- Clickable deep link into the exact task in the app.
   v_link := '  ·  <https://vibe-pm-six.vercel.app/board?task=' ||
             coalesce(NEW.id, OLD.id) || '|open>';
 
   if TG_OP = 'INSERT' then
+    if not private.slack_flag(v_notify, 'created') then return NEW; end if;
     select name into v_assignee from public.team_members where id = NEW.assignee_id;
     select name into v_actor from public.team_members where id = NEW.created_by;
     v_text := ':new: *New task* — *' || NEW.title || '*  ·  ' ||
@@ -137,27 +166,36 @@ begin
       '  ·  ' || coalesce(st->>NEW.status, NEW.status) ||
       '  ·  added by ' || coalesce(v_actor, 'someone') || v_link;
   elsif TG_OP = 'DELETE' then
+    if not private.slack_flag(v_notify, 'deleted') then return OLD; end if;
     select name into v_actor from public.team_members where id = OLD.updated_by;
     v_text := ':wastebasket: *Task removed* — ' || OLD.title ||
       '  ·  by ' || coalesce(v_actor, 'someone');
   else
+    -- Each kind of change is included only if its switch is on; a change whose
+    -- switch is off is left out of the sentence, and an update with nothing
+    -- left to say posts nothing at all.
     v_changes := array[]::text[];
-    if NEW.status is distinct from OLD.status then
+    if NEW.status is distinct from OLD.status
+       and private.slack_flag(v_notify, 'status_' || NEW.status) then
       v_changes := v_changes || ('status ' || coalesce(st->>OLD.status, OLD.status) ||
                    ' → *' || coalesce(st->>NEW.status, NEW.status) || '*');
     end if;
-    if NEW.assignee_id is distinct from OLD.assignee_id then
+    if NEW.assignee_id is distinct from OLD.assignee_id
+       and private.slack_flag(v_notify, 'reassigned') then
       select name into v_assignee from public.team_members where id = NEW.assignee_id;
       v_changes := v_changes || ('assignee → ' || coalesce(v_assignee, 'Unassigned'));
     end if;
-    if NEW.due_date is distinct from OLD.due_date then
+    if NEW.due_date is distinct from OLD.due_date
+       and private.slack_flag(v_notify, 'updated') then
       v_changes := v_changes || ('due → ' || coalesce(NEW.due_date::text, 'none'));
     end if;
-    if NEW.title is distinct from OLD.title then
+    if NEW.title is distinct from OLD.title
+       and private.slack_flag(v_notify, 'updated') then
       v_changes := v_changes || ('renamed to *' || NEW.title || '*');
       v_heading := OLD.title;   -- so it reads: *old* — renamed to *new*
     end if;
-    if NEW.urgency is distinct from OLD.urgency then
+    if NEW.urgency is distinct from OLD.urgency
+       and private.slack_flag(v_notify, 'updated') then
       v_changes := v_changes || ('urgency → ' || NEW.urgency);
     end if;
     if array_length(v_changes, 1) is null then return NEW; end if;
@@ -177,11 +215,15 @@ create or replace function private.notify_slack_comments()
 returns trigger language plpgsql security definer
 set search_path = public, private as $fn$
 declare v_channel text; v_title text; v_author text; v_body text; v_text text;
+        v_notify jsonb;
 begin
   select private.slack_channel_for(t.project_id), t.title
     into v_channel, v_title
     from public.tasks t where t.id = NEW.task_id;
   if v_channel is null then return NEW; end if;
+  select coalesce(s.slack -> 'notify', '{}'::jsonb) into v_notify
+    from public.app_settings s where s.id = 1;
+  if not private.slack_flag(v_notify, 'comments') then return NEW; end if;
   select name into v_author from public.team_members where id = NEW.author_id;
   v_body := coalesce(NEW.body, '');
   if length(v_body) > 280 then v_body := left(v_body, 277) || '…'; end if;
@@ -214,6 +256,19 @@ async function main() {
     `insert into private.slack_config (id, bot_token) values (1, $1)
      on conflict (id) do update set bot_token = excluded.bot_token`,
     [token]
+  );
+  // Seed the notification switches the first time only — all on, so installing
+  // them changes nothing until an admin turns something off in Settings.
+  const seeded = await client.query(
+    `update app_settings
+        set slack = jsonb_set(slack, '{notify}', $1::jsonb, true)
+      where id = 1 and not (slack ? 'notify')`,
+    [JSON.stringify(DEFAULT_NOTIFY)]
+  );
+  console.log(
+    seeded.rowCount
+      ? "Notification switches seeded (all on)."
+      : "Notification switches already set — left alone."
   );
   const { rows } = await client.query(
     `select tgname, relname from pg_trigger t

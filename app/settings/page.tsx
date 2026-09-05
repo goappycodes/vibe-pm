@@ -5,6 +5,7 @@ import { EditableText } from "@/components/EditableText";
 
 import { MenuItem, Popover } from "@/components/Popover";
 import { useStore } from "@/lib/store";
+import { SLACK_EVENTS, slackEventOn } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   Check,
@@ -17,6 +18,7 @@ import {
   CheckCircle2,
   Eye,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -149,6 +151,8 @@ export default function SettingsPage() {
           )}
         </section>
 
+        <SlackNotifyCard isAdmin={isAdmin} />
+
         {/* General */}
         <section className="card mt-4 p-5">
           <div className="mb-4 flex items-center gap-2">
@@ -263,6 +267,125 @@ export default function SettingsPage() {
   );
 }
 
+/**
+ * Which task events are allowed to reach Slack. One switch per event, applied
+ * across every project — the database trigger reads the same settings, so a
+ * switch turned off here silences that event whatever door the change came
+ * through. Nothing about the messages themselves changes; they are simply not
+ * sent.
+ */
+function SlackNotifyCard({ isAdmin }: { isAdmin: boolean }) {
+  const notify = useStore((s) => s.settings.slack.notify);
+  const setSlackNotify = useStore((s) => s.setSlackNotify);
+
+  const on = SLACK_EVENTS.filter((e) => slackEventOn(notify, e.key)).length;
+  const lifecycle = SLACK_EVENTS.filter((e) => e.group === "lifecycle");
+  const status = SLACK_EVENTS.filter((e) => e.group === "status");
+
+  const row = (e: (typeof SLACK_EVENTS)[number]) => {
+    const enabled = slackEventOn(notify, e.key);
+    return (
+      <div
+        key={e.key}
+        className="flex items-center justify-between gap-3 py-2.5 border-b border-border/60 last:border-0"
+      >
+        <div className="min-w-0">
+          <div className="text-sm text-fg">{e.label}</div>
+          {e.hint && (
+            <div className="mt-0.5 text-[11px] leading-snug text-faint">
+              {e.hint}
+            </div>
+          )}
+        </div>
+        <Toggle
+          on={enabled}
+          disabled={!isAdmin}
+          label={e.label}
+          onToggle={() => setSlackNotify(e.key, !enabled)}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <section className="card mt-4 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2">
+          <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-faint" />
+          <div>
+            <h2 className="text-sm font-semibold text-fg">
+              Task notifications to Slack
+            </h2>
+            <p className="text-xs text-faint">
+              Every task change posts to its project&apos;s channel. Turn off
+              what your team doesn&apos;t need — this applies to all projects.
+            </p>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted">
+          {on} of {SLACK_EVENTS.length} on
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-x-8 sm:grid-cols-2">
+        <div>
+          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-faint">
+            Task lifecycle
+          </div>
+          {lifecycle.map(row)}
+        </div>
+        <div>
+          <div className="mb-1 mt-4 text-[11px] font-medium uppercase tracking-wide text-faint sm:mt-0">
+            Status changes
+          </div>
+          {status.map(row)}
+        </div>
+      </div>
+
+      <p className="mt-4 border-t border-border pt-3 text-[11px] text-faint">
+        {isAdmin
+          ? "Takes effect on the next change — no redeploy. Comments and task changes made from Slack itself are covered too."
+          : "Only admins can change these."}
+      </p>
+    </section>
+  );
+}
+
+/** The pill switch used by the Slack and alert cards. */
+function Toggle({
+  on,
+  onToggle,
+  disabled,
+  label,
+}: {
+  on: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      onClick={disabled ? undefined : onToggle}
+      disabled={disabled}
+      aria-pressed={on}
+      aria-label={label}
+      className={cn(
+        "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+        on ? "bg-accent" : "bg-surface-2 border border-border",
+        disabled && "opacity-50"
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-0.5 rounded-full bg-white transition-all",
+          on ? "left-[22px]" : "left-0.5"
+        )}
+        style={{ height: 18, width: 18 }}
+      />
+    </button>
+  );
+}
+
 function AlertsCard() {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
@@ -303,22 +426,11 @@ function AlertsCard() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setAlerts({ enabled: !enabled })}
-          className={cn(
-            "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-            enabled ? "bg-accent" : "bg-surface-2 border border-border"
-          )}
-          aria-pressed={enabled}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition-all",
-              enabled ? "left-[22px]" : "left-0.5"
-            )}
-            style={{ height: 18, width: 18 }}
-          />
-        </button>
+        <Toggle
+          on={enabled}
+          label="Activity alerts"
+          onToggle={() => setAlerts({ enabled: !enabled })}
+        />
       </div>
 
       <div className="mt-3">

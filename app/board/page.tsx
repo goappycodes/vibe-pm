@@ -84,7 +84,18 @@ export default function BoardPage() {
   const reorderColumn = useStore((s) => s.reorderColumn);
 
   const [query, setQuery] = useState("");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  // The board opens on your own cards — it's a working queue, not a report.
+  // `currentUserId` only settles once the session and members have loaded, so
+  // track it until someone picks a filter for themselves.
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(currentUserId);
+  const pickedFilter = useRef(false);
+  useEffect(() => {
+    if (!pickedFilter.current) setAssigneeFilter(currentUserId);
+  }, [currentUserId]);
+  const pickAssignee = useCallback((id: string) => {
+    pickedFilter.current = true;
+    setAssigneeFilter(id);
+  }, []);
   const hasFilters = query.trim() !== "" || assigneeFilter !== "all";
 
   const visible = useMemo(() => {
@@ -271,7 +282,7 @@ export default function BoardPage() {
 
           <button
             onClick={() =>
-              setAssigneeFilter((a) => (a === currentUserId ? "all" : currentUserId))
+              pickAssignee(assigneeFilter === currentUserId ? "all" : currentUserId)
             }
             className={cn(
               "btn-outline",
@@ -299,7 +310,7 @@ export default function BoardPage() {
                 <MenuItem
                   active={assigneeFilter === "all"}
                   onClick={() => {
-                    setAssigneeFilter("all");
+                    pickAssignee("all");
                     close();
                   }}
                 >
@@ -308,7 +319,7 @@ export default function BoardPage() {
                 <MenuItem
                   active={assigneeFilter === "unassigned"}
                   onClick={() => {
-                    setAssigneeFilter("unassigned");
+                    pickAssignee("unassigned");
                     close();
                   }}
                 >
@@ -321,7 +332,7 @@ export default function BoardPage() {
                       key={m.id}
                       active={assigneeFilter === m.id}
                       onClick={() => {
-                        setAssigneeFilter(m.id);
+                        pickAssignee(m.id);
                         close();
                       }}
                     >
@@ -340,7 +351,7 @@ export default function BoardPage() {
             <button
               onClick={() => {
                 setQuery("");
-                setAssigneeFilter("all");
+                pickAssignee("all");
               }}
               className="btn-ghost gap-1 text-xs text-muted"
             >

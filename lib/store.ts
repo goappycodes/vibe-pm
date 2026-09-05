@@ -9,6 +9,7 @@ import type {
   Comment,
   DaySelection,
   Project,
+  SlackEventKey,
   Status,
   Task,
   TaskDependency,
@@ -195,6 +196,7 @@ interface State {
 
   updateSettings: (patch: Partial<AppSettings>) => void;
   setSlackConnected: (connected: boolean) => void;
+  setSlackNotify: (key: SlackEventKey, on: boolean) => void;
 
   toggleSelect: (id: string) => void;
   selectMany: (ids: string[]) => void;
@@ -995,6 +997,22 @@ export const useStore = create<State>((set, get) => ({
       settings: {
         ...state.settings,
         slack: { ...state.settings.slack, connected },
+      },
+    }));
+    const s = get().settings;
+    upsertRows("app_settings", [{ id: 1, slack: s.slack, general: s.general }]);
+  },
+
+  // One Slack event switch. The database trigger reads the same jsonb, so this
+  // silences the event for every door, not just changes made in the app.
+  setSlackNotify: (key, on) => {
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        slack: {
+          ...state.settings.slack,
+          notify: { ...state.settings.slack.notify, [key]: on },
+        },
       },
     }));
     const s = get().settings;

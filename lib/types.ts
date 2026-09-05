@@ -71,12 +71,36 @@ export interface SlackChannel {
   name: string;
 }
 
+/**
+ * Which task-lifecycle events reach Slack. Read by the database trigger
+ * (`private.notify_slack_tasks`) as well as the UI, so a switch turned off here
+ * silences that event everywhere — app, scripts, Slack itself.
+ *
+ * A missing key means **on**: an install that has never touched these settings
+ * behaves exactly as it did before they existed.
+ */
+export type SlackEventKey =
+  | "created"
+  | "updated"
+  | "deleted"
+  | "reassigned"
+  | "status_backlog"
+  | "status_todo"
+  | "status_in_progress"
+  | "status_blocked"
+  | "status_in_review"
+  | "status_done"
+  | "comments";
+
+export type SlackNotifySettings = Partial<Record<SlackEventKey, boolean>>;
+
 export interface AppSettings {
   slack: {
     connected: boolean;
     workspace: string; // e.g. appycodes.slack.com
     team_name: string;
     channels: SlackChannel[];
+    notify?: SlackNotifySettings;
   };
   general: {
     org_name: string;
@@ -201,6 +225,79 @@ export const STATUS_META: Record<
   },
   done: { label: "Done", color: "text-emerald-600", dot: "bg-emerald-500" },
 };
+
+/** The Slack switches, in the order they read best in Settings. */
+export const SLACK_EVENTS: {
+  key: SlackEventKey;
+  label: string;
+  hint: string;
+  group: "lifecycle" | "status";
+}[] = [
+  {
+    key: "created",
+    label: "Created",
+    hint: "A new task is added to the project",
+    group: "lifecycle",
+  },
+  {
+    key: "updated",
+    label: "Updated",
+    hint: "Renamed, or its due date or urgency changed",
+    group: "lifecycle",
+  },
+  {
+    key: "reassigned",
+    label: "Reassigned",
+    hint: "The task changes hands",
+    group: "lifecycle",
+  },
+  {
+    key: "deleted",
+    label: "Deleted",
+    hint: "A task is removed",
+    group: "lifecycle",
+  },
+  {
+    key: "comments",
+    label: "Comments",
+    hint: "Someone comments on a task",
+    group: "lifecycle",
+  },
+  {
+    key: "status_backlog",
+    label: "Moved to Backlog",
+    hint: "",
+    group: "status",
+  },
+  { key: "status_todo", label: "Moved to To do", hint: "", group: "status" },
+  {
+    key: "status_in_progress",
+    label: "Moved to In progress",
+    hint: "",
+    group: "status",
+  },
+  {
+    key: "status_blocked",
+    label: "Moved to Blocked",
+    hint: "",
+    group: "status",
+  },
+  {
+    key: "status_in_review",
+    label: "Moved to In review",
+    hint: "",
+    group: "status",
+  },
+  { key: "status_done", label: "Moved to Done", hint: "", group: "status" },
+];
+
+/** Missing means on, so nothing is silenced until an admin says so. */
+export function slackEventOn(
+  notify: SlackNotifySettings | undefined,
+  key: SlackEventKey
+): boolean {
+  return notify?.[key] !== false;
+}
 
 export const URGENCY_META: Record<
   Urgency,
