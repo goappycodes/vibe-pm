@@ -13,6 +13,7 @@ import { differenceInCalendarDays, format } from "date-fns";
 import { ChevronDown, Info, Minus, Plus } from "lucide-react";
 import { MenuItem, Popover } from "@/components/Popover";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useQueryState } from "@/lib/useUrlState";
 
 const BASE_DAY_W = 30;
 const MIN_DAY_W = 12;
@@ -60,8 +61,11 @@ export default function TimelinePage() {
   );
   const initedRef = useRef(false);
   const [dayW, setDayW] = useState(BASE_DAY_W);
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [hideDone, setHideDone] = useState(false);
+  // Filters live in the URL so a filtered timeline is shareable and Back-friendly.
+  const [assigneeFilter, setAssigneeFilter] = useQueryState("assignee", "all");
+  const [hideDoneRaw, setHideDoneRaw] = useQueryState("done", "");
+  const hideDone = hideDoneRaw === "1";
+  const setHideDone = (v: boolean) => setHideDoneRaw(v ? "1" : "");
 
   const visible = useMemo(() => {
     return (
@@ -276,7 +280,7 @@ export default function TimelinePage() {
             )}
           </Popover>
           <button
-            onClick={() => setHideDone((v) => !v)}
+            onClick={() => setHideDone(!hideDone)}
             className={cn(
               "rounded-md border px-2 py-1 text-xs transition-colors",
               hideDone

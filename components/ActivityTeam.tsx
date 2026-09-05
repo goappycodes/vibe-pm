@@ -1,10 +1,11 @@
 "use client";
 
 import { Avatar } from "@/components/Avatar";
+import { dayOverLogged } from "@/lib/activity";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
 import { formatDuration } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface Row {
@@ -137,7 +138,15 @@ export function ActivityTeam({
                   </div>
                 </td>
                 <td className="px-3 py-2.5 tabular-nums text-fg">
-                  {formatDuration(r.logged)}
+                  <span className="inline-flex items-center gap-1.5">
+                    {formatDuration(r.logged)}
+                    {dayOverLogged(r.logged, r.active, r.brk) && (
+                      <AlertTriangle
+                        className="h-3.5 w-3.5 text-amber-500"
+                        aria-label="Logged time far exceeds recorded activity"
+                      />
+                    )}
+                  </span>
                 </td>
                 <td className="hidden px-3 py-2.5 tabular-nums text-emerald-600 sm:table-cell dark:text-emerald-400">
                   {formatDuration(r.active)}

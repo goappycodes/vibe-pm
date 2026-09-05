@@ -2,9 +2,11 @@
 
 import { useStore } from "@/lib/store";
 import { PROJECT_COLORS } from "@/lib/types";
+import { useUrlParams } from "@/lib/useUrlState";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Menu, Plus, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { MenuItem, Popover } from "./Popover";
 import { ViewSwitcher } from "./ViewSwitcher";
 
@@ -49,6 +51,14 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const setCommandOpen = useStore((s) => s.setCommandOpen);
   const setNewTaskOpen = useStore((s) => s.setNewTaskOpen);
   const openDetail = useStore((s) => s.openDetail);
+  const { set: setUrl } = useUrlParams();
+
+  // Seed the global project filter from a shared/deep-linked ?project= on load.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("project");
+    if (p) setActiveProject(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const showProjectFilter = FILTER_ROUTES.includes(pathname);
   const showSwitcher = VIEW_ROUTES.includes(pathname);
@@ -114,6 +124,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
                   active={activeProject === "all"}
                   onClick={() => {
                     setActiveProject("all");
+                    setUrl({ project: null });
                     close();
                   }}
                 >
@@ -129,6 +140,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
                     active={activeProject === p.id}
                     onClick={() => {
                       setActiveProject(p.id);
+                      setUrl({ project: p.id });
                       close();
                     }}
                   >

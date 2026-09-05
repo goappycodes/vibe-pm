@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase/client";
 import type { Break, TimeLog } from "@/lib/types";
+import { useUrlParams } from "@/lib/useUrlState";
 import { cn } from "@/lib/utils";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -38,16 +39,18 @@ export default function ActivityPage() {
   const isLead =
     currentUser?.role === "admin" || currentUser?.role === "team_lead";
 
-  const [mode, setMode] = useState<Mode>("team");
-  const [userId, setUserId] = useState<string>("");
-  const [date, setDate] = useState<string>(() => todayISO());
+  // tab / user / date live in the URL so Back/Forward works and views are
+  // shareable (e.g. /activity?tab=person&user=…&date=…).
+  const { get, set } = useUrlParams();
+  const rawTab = get("tab", "team");
+  const mode: Mode =
+    rawTab === "person" || rawTab === "approvals" ? rawTab : "team";
+  const userId = get("user") || currentUser?.id || "";
+  const date = get("date") || todayISO();
   const [data, setData] = useState<DayData | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(0);
-
-  useEffect(() => {
-    if (!userId && currentUser) setUserId(currentUser.id);
-  }, [userId, currentUser]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Pending-approval badge count.
   useEffect(() => {
@@ -85,7 +88,7 @@ export default function ActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, userId, date]);
+  }, [mode, userId, date, refreshKey]);
 
   const sortedMembers = useMemo(
     () => [...members].sort((a, b) => a.name.localeCompare(b.name)),
@@ -108,14 +111,13 @@ export default function ActivityPage() {
     );
   }
 
-  const openMember = (id: string) => {
-    setUserId(id);
-    setMode("person");
-  };
+  // Opening a member pushes a history entry, so Back returns to the team list
+  // (and the person/day view is shareable by URL).
+  const openMember = (id: string) => set({ tab: "person", user: id }, "push");
 
   const tab = (m: Mode, label: string, badge?: number) => (
     <button
-      onClick={() => setMode(m)}
+      onClick={() => set({ tab: m === "team" ? null : m }, "push")}
       className={cn(
         "relative rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
         mode === m
@@ -156,7 +158,7 @@ export default function ActivityPage() {
                 {viewed && <Avatar member={viewed} size="md" />}
                 <select
                   value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
+                  onChange={(e) => set({ user: e.target.value })}
                   className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-accent"
                 >
                   {sortedMembers.map((m) => (
@@ -170,7 +172,7 @@ export default function ActivityPage() {
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => set({ date: e.target.value })}
               className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus:border-accent"
             />
           </div>
@@ -197,6 +199,8 @@ export default function ActivityPage() {
               logs={data?.logs ?? []}
               breaks={data?.breaks ?? []}
               activity={data?.activity ?? []}
+              reviewerId={currentUser?.id}
+              onChanged={() => setRefreshKey((k) => k + 1)}
             />
           ))}
       </div>

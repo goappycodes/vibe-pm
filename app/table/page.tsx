@@ -34,6 +34,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useQueryState } from "@/lib/useUrlState";
 
 type SortKey = "due" | "urgency" | "status" | "title";
 const COLS =
@@ -54,9 +55,11 @@ export default function TablePage() {
     key: "due",
     dir: 1,
   });
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  // Filters live in the URL so a filtered table is shareable and Back-friendly.
+  const [query, setQuery] = useQueryState("q", "");
+  const [statusFilterRaw, setStatusFilter] = useQueryState("status", "all");
+  const statusFilter = statusFilterRaw as Status | "all";
+  const [assigneeFilter, setAssigneeFilter] = useQueryState("assignee", "all");
 
   const hasFilters =
     query.trim() !== "" || statusFilter !== "all" || assigneeFilter !== "all";

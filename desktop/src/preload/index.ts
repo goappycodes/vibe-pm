@@ -23,6 +23,11 @@ export interface ActivitySample {
   onBreak: boolean;
 }
 
+export interface IdleSettings {
+  autoStop: boolean;
+  minutes: number; // idle minutes before a running timer auto-stops
+}
+
 const api = {
   // --- auth / window ---
   startAuth: (): Promise<AuthTokens> => ipcRenderer.invoke("auth:start"),
@@ -35,9 +40,11 @@ const api = {
   setTimerState: (state: TimerState): void =>
     ipcRenderer.send("timer:state", state),
 
-  // --- main process -> main window: commands (from tray / mini / idle prompt) ---
-  onCommand: (cb: (cmd: string) => void): (() => void) => {
-    const h = (_e: IpcRendererEvent, cmd: string) => cb(cmd);
+  // --- main process -> main window: commands (from tray / mini / idle watch) ---
+  // Some commands carry a payload (e.g. "idle-stop" sends the last-active epoch ms).
+  onCommand: (cb: (cmd: string, payload?: unknown) => void): (() => void) => {
+    const h = (_e: IpcRendererEvent, cmd: string, payload?: unknown) =>
+      cb(cmd, payload);
     ipcRenderer.on("command", h);
     return () => ipcRenderer.removeListener("command", h);
   },
@@ -56,6 +63,11 @@ const api = {
   getMiniEnabled: (): Promise<boolean> => ipcRenderer.invoke("mini:get"),
   setMiniEnabled: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke("mini:set", enabled),
+
+  // --- idle auto-stop settings (persisted) ---
+  getIdleSettings: (): Promise<IdleSettings> => ipcRenderer.invoke("idle:get"),
+  setIdleSettings: (v: Partial<IdleSettings>): Promise<IdleSettings> =>
+    ipcRenderer.invoke("idle:set", v),
 
   // --- activity tracking: main samples input, main window persists it ---
   onActivitySample: (cb: (s: ActivitySample) => void): (() => void) => {

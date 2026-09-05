@@ -1,10 +1,26 @@
 "use client";
 
 import { useStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase/client";
 import type { Break, TimeLog } from "@/lib/types";
 import { cn, formatDuration } from "@/lib/utils";
-import { Activity, Coffee, Clock, MousePointerClick, Moon } from "lucide-react";
-import { useMemo } from "react";
+import {
+  activeMinutesInWindow,
+  addMinutesClock,
+  dayOverLogged,
+  entryOverLogged,
+} from "@/lib/activity";
+import {
+  Activity,
+  AlertTriangle,
+  Coffee,
+  Clock,
+  Loader2,
+  MousePointerClick,
+  Moon,
+  Scissors,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 
 export interface ActivitySampleRow {
   minute: string; // "HH:MM"
@@ -36,10 +52,15 @@ export function ActivityDay({
   logs,
   breaks,
   activity,
+  reviewerId,
+  onChanged,
 }: {
   logs: TimeLog[];
   breaks: Break[];
   activity: ActivitySampleRow[];
+  // When set (admin/lead viewing), suspicious logs can be corrected in place.
+  reviewerId?: string;
+  onChanged?: () => void;
 }) {
   const tasks = useStore((s) => s.tasks);
   const projectById = useStore((s) => s.projectById);
@@ -63,6 +84,20 @@ export function ActivityDay({
       .filter((a) => !a.on_break)
       .reduce((s, a) => s + (60 - a.active_seconds), 0) / 60
   );
+
+  // ---- over-logged detection (a timer likely left running with no input) ----
+  const dayFlagged = dayOverLogged(loggedMin, activeMin, breakMin);
+  const flagged = useMemo(() => {
+    const out = new Map<string, number>(); // logId -> active minutes in its window
+    for (const l of logs) {
+      const am = activeMinutesInWindow(activity, l.start_time, l.end_time);
+      if (entryOverLogged(l.minutes, am)) out.set(l.id, am);
+    }
+    return out;
+  }, [logs, activity]);
+  const flaggedLogs = logs
+    .filter((l) => flagged.has(l.id))
+    .sort((a, b) => b.minutes - a.minutes);
 
   // ---- per-task breakdown (from logged time) ----
   const perTask = useMemo(() => {
@@ -100,6 +135,21 @@ export function ActivityDay({
         <StatTile icon={<Coffee className="h-4 w-4" />} label="Break" value={formatDuration(breakMin)} tone="amber" />
       </div>
 
+      {dayFlagged && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-500/30 dark:bg-amber-500/10">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <div className="text-amber-800 dark:text-amber-200">
+            <span className="font-medium">
+              Logged time far exceeds recorded activity.
+            </span>{" "}
+            {formatDuration(loggedMin)} logged but only{" "}
+            {formatDuration(activeMin)} active
+            {breakMin > 0 && <> + {formatDuration(breakMin)} on break</>} — a
+            timer may have been left running. Review the flagged entries below.
+          </div>
+        </div>
+      )}
+
       {!hasData ? (
         <div className="rounded-2xl border border-dashed border-border py-16 text-center">
           <Activity className="mx-auto h-8 w-8 text-faint" />
@@ -110,6 +160,15 @@ export function ActivityDay({
         </div>
       ) : (
         <>
+          {flaggedLogs.length > 0 && (
+            <FlaggedLogs
+              logs={flaggedLogs}
+              activeMinById={flagged}
+              taskTitle={taskTitle}
+              reviewerId={reviewerId}
+              onChanged={onChanged}
+            />
+          )}
           {/* timeline */}
           <div className="card p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -145,7 +204,8 @@ export function ActivityDay({
                   key={l.id}
                   className={cn(
                     "absolute top-1 flex h-5 items-center overflow-hidden rounded px-1.5 text-[10px] font-medium text-white",
-                    l.modified && "ring-1 ring-inset ring-white/80"
+                    l.modified && "ring-1 ring-inset ring-white/80",
+                    flagged.has(l.id) && "ring-2 ring-inset ring-amber-400"
                   )}
                   style={{
                     left: `${pct(toMin(l.start_time))}%`,
@@ -241,6 +301,162 @@ export function ActivityDay({
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+function FlaggedLogs({
+  logs,
+  activeMinById,
+  taskTitle,
+  reviewerId,
+  onChanged,
+}: {
+  logs: TimeLog[];
+  activeMinById: Map<string, number>;
+  taskTitle: (id: string | null) => string;
+  reviewerId?: string;
+  onChanged?: () => void;
+}) {
+  return (
+    <div className="card border-amber-300 p-4 dark:border-amber-500/30">
+      <div className="mb-1 flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <h3 className="text-sm font-semibold text-fg">Flagged entries</h3>
+        <span className="text-xs text-faint">{logs.length}</span>
+      </div>
+      <p className="mb-3 text-xs text-faint">
+        These logs are long but saw little computer activity in their window.
+        {reviewerId ? " Trim them to the active time or set a corrected value." : ""}
+      </p>
+      <div className="space-y-2">
+        {logs.map((l) => (
+          <FlaggedRow
+            key={l.id}
+            log={l}
+            activeMin={activeMinById.get(l.id) ?? 0}
+            title={taskTitle(l.task_id)}
+            reviewerId={reviewerId}
+            onChanged={onChanged}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FlaggedRow({
+  log,
+  activeMin,
+  title,
+  reviewerId,
+  onChanged,
+}: {
+  log: TimeLog;
+  activeMin: number;
+  title: string;
+  reviewerId?: string;
+  onChanged?: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [mins, setMins] = useState(String(Math.max(1, activeMin)));
+  const canEdit = !!reviewerId && !!supabase;
+
+  const apply = async (newMin: number) => {
+    if (!canEdit || saving) return;
+    const m = Math.max(1, Math.round(newMin));
+    setSaving(true);
+    const { error } = await supabase!
+      .from("time_logs")
+      .update({
+        minutes: m,
+        end_time: addMinutesClock(log.start_time, m),
+        modified: true,
+        edited_by: reviewerId,
+        edited_at: new Date().toISOString(),
+      })
+      .eq("id", log.id);
+    setSaving(false);
+    if (error) {
+      console.error("[time_logs] correct:", error.message);
+      return;
+    }
+    setEditing(false);
+    onChanged?.();
+  };
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
+          {title}
+        </span>
+        <span className="tabular-nums text-xs text-faint">
+          {log.start_time}–{log.end_time}
+        </span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        <span className="text-muted">
+          Logged{" "}
+          <b className="font-semibold text-fg">{formatDuration(log.minutes)}</b>
+        </span>
+        <span className="text-muted">
+          Active{" "}
+          <b className="font-semibold text-emerald-600">
+            {formatDuration(activeMin)}
+          </b>
+        </span>
+        {log.modified && <span className="text-faint">✎ edited</span>}
+      </div>
+      {canEdit && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            className="btn-outline gap-1.5 text-xs"
+            onClick={() => apply(activeMin)}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Scissors className="h-3.5 w-3.5" />
+            )}
+            Trim to {formatDuration(Math.max(1, activeMin))}
+          </button>
+          {editing ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                value={mins}
+                onChange={(e) => setMins(e.target.value)}
+                className="input h-8 w-20 py-1 text-xs"
+              />
+              <span className="text-xs text-faint">min</span>
+              <button
+                className="btn-primary text-xs"
+                onClick={() => apply(Number(mins) || 1)}
+                disabled={saving}
+              >
+                Save
+              </button>
+              <button
+                className="btn-ghost text-xs"
+                onClick={() => setEditing(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-ghost text-xs"
+              onClick={() => setEditing(true)}
+            >
+              Adjust…
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

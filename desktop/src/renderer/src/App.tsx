@@ -68,6 +68,9 @@ function Header({
   const [open, setOpen] = useState(false);
   const [auto, setAuto] = useState<boolean | null>(null);
   const [mini, setMini] = useState<boolean | null>(null);
+  const [idle, setIdle] = useState<{ autoStop: boolean; minutes: number } | null>(
+    null
+  );
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,7 +79,12 @@ function Header({
       window.api?.getAutoLaunch?.().then(setAuto).catch(() => setAuto(false));
     if (mini === null)
       window.api?.getMiniEnabled?.().then(setMini).catch(() => setMini(true));
-  }, [open, auto, mini]);
+    if (idle === null)
+      window.api
+        ?.getIdleSettings?.()
+        .then(setIdle)
+        .catch(() => setIdle({ autoStop: true, minutes: 15 }));
+  }, [open, auto, mini, idle]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -95,6 +103,19 @@ function Header({
   const toggleMini = async () => {
     if (!window.api?.setMiniEnabled) return;
     setMini(await window.api.setMiniEnabled(!(mini ?? true)));
+  };
+  const toggleIdle = async () => {
+    if (!window.api?.setIdleSettings) return;
+    setIdle(
+      await window.api.setIdleSettings({ autoStop: !(idle?.autoStop ?? true) })
+    );
+  };
+  const cycleIdleMinutes = async () => {
+    if (!window.api?.setIdleSettings) return;
+    const presets = [10, 15, 20, 30];
+    const cur = idle?.minutes ?? 15;
+    const next = presets[(presets.indexOf(cur) + 1) % presets.length] ?? 15;
+    setIdle(await window.api.setIdleSettings({ minutes: next }));
   };
 
   return (
@@ -133,6 +154,18 @@ function Header({
               {mini === null ? "…" : mini ? "On" : "Off"}
             </span>
           </button>
+          <button className="menu-row" onClick={toggleIdle}>
+            <span>Auto-stop when idle</span>
+            <span className="faint">
+              {idle === null ? "…" : idle.autoStop ? "On" : "Off"}
+            </span>
+          </button>
+          {idle?.autoStop && (
+            <button className="menu-row" onClick={cycleIdleMinutes}>
+              <span>Idle timeout</span>
+              <span className="faint">{idle.minutes} min</span>
+            </button>
+          )}
           <button className="menu-row" onClick={toggleAuto}>
             <span>Start on login</span>
             <span className="faint">
@@ -226,7 +259,7 @@ export function App() {
   // Commands from the tray / mini window / idle prompt.
   useEffect(() => {
     if (!window.api?.onCommand) return;
-    return window.api.onCommand((cmd) => {
+    return window.api.onCommand((cmd, payload) => {
       const s = useStore.getState();
       if (cmd === "stop") s.stopTimer();
       else if (cmd === "open-entries") setScreen("entries");
@@ -235,6 +268,11 @@ export function App() {
         // Computer slept/locked — close the open segment so away time isn't counted.
         if (s.timer) s.stopTimer();
         else if (s.brk) s.endBreak();
+      } else if (cmd === "idle-stop") {
+        // Auto-stopped for inactivity — log only up to the last-active time.
+        const lastActiveMs =
+          typeof payload === "number" ? payload : Date.now();
+        if (s.timer) s.stopTimer(lastActiveMs);
       }
     });
   }, []);

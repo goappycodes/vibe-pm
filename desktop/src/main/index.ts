@@ -25,12 +25,16 @@ import {
 import type { TimerState } from "../preload/index";
 
 const IDLE_PROMPT_MS = 60 * 1000;
+const IDLE_CHECK_MS = 30 * 1000; // how often to check OS input idle while a timer runs
+const IDLE_WARN_LEAD_MIN = 2; // warn this many minutes before the auto-stop
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let settings: Settings;
 let lastState: TimerState = { mode: "inactive", label: "" };
 let idleTimer: NodeJS.Timeout | null = null;
+let idleWatch: NodeJS.Timeout | null = null; // input-inactivity watch while timing
+let idleWarned = false; // one warn per idle stretch
 
 function resourcesDir(): string {
   return app.isPackaged
@@ -132,6 +136,60 @@ function reconcileIdlePrompt(): void {
   }
 }
 
+// --- auto-stop a running timer after prolonged OS input inactivity ---
+// A forgotten/overnight timer would otherwise log wall-clock time with no work
+// behind it. We watch getSystemIdleTime() only while mode === "timer": warn a
+// couple of minutes early, then stop and log ONLY up to the last input.
+function checkInputIdle(): void {
+  if (lastState.mode !== "timer") return;
+  const idleSec = powerMonitor.getSystemIdleTime();
+  const stopSec = Math.max(60, settings.idleStopMinutes * 60);
+  const warnSec = Math.max(
+    60,
+    (settings.idleStopMinutes - IDLE_WARN_LEAD_MIN) * 60
+  );
+
+  if (idleSec < warnSec) {
+    idleWarned = false; // activity resumed — re-arm the warning
+    return;
+  }
+  if (idleSec >= stopSec) {
+    // Log up to when input actually stopped, not "now".
+    const lastActiveMs = Date.now() - idleSec * 1000;
+    mainWindow?.webContents.send("command", "idle-stop", lastActiveMs);
+    idleWarned = false;
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Vibe Timer stopped",
+        body: `You were idle for ${settings.idleStopMinutes} min — your time was logged up to when you stepped away.`,
+      }).show();
+    }
+    return;
+  }
+  if (!idleWarned) {
+    idleWarned = true;
+    const win = mainWindow;
+    if (win && !win.isDestroyed()) jitterWindow(win);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Still working?",
+        body: `No activity detected — your timer will stop in ${IDLE_WARN_LEAD_MIN} min if you stay idle.`,
+      }).show();
+    }
+  }
+}
+
+function reconcileIdleWatch(): void {
+  const shouldWatch = settings.idleAutoStop && lastState.mode === "timer";
+  if (shouldWatch) {
+    if (!idleWatch) idleWatch = setInterval(checkInputIdle, IDLE_CHECK_MS);
+  } else if (idleWatch) {
+    clearInterval(idleWatch);
+    idleWatch = null;
+    idleWarned = false;
+  }
+}
+
 /** Shake the window horizontally to grab attention. */
 function jitterWindow(win: BrowserWindow): void {
   if (win.isDestroyed()) return;
@@ -214,6 +272,7 @@ if (!gotLock) {
       lastState = state;
       updateTrayStatus(state.label || "Idle");
       reconcileIdlePrompt();
+      reconcileIdleWatch();
       sendToMini(state);
       reconcileMini();
     });
@@ -260,6 +319,25 @@ if (!gotLock) {
       return settings.miniEnabled;
     });
 
+    // Idle auto-stop settings (persisted). Re-arm the watch on change.
+    const idleSettings = () => ({
+      autoStop: settings.idleAutoStop,
+      minutes: settings.idleStopMinutes,
+    });
+    ipcMain.handle("idle:get", () => idleSettings());
+    ipcMain.handle(
+      "idle:set",
+      (_e, v: { autoStop?: boolean; minutes?: number }) => {
+        if (typeof v?.autoStop === "boolean") settings.idleAutoStop = v.autoStop;
+        if (typeof v?.minutes === "number" && v.minutes >= 1)
+          settings.idleStopMinutes = Math.round(v.minutes);
+        saveSettings(settings);
+        idleWarned = false;
+        reconcileIdleWatch();
+        return idleSettings();
+      }
+    );
+
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
       showWindow();
@@ -276,6 +354,7 @@ if (!gotLock) {
 
   app.on("will-quit", () => {
     if (idleTimer) clearInterval(idleTimer);
+    if (idleWatch) clearInterval(idleWatch);
     stopActivityTracking();
     destroyMini();
     destroyTray();

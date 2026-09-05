@@ -97,7 +97,9 @@ interface State {
   setTaskStatus: (taskId: string, status: Status) => Promise<void>;
 
   startTimer: (taskId: string) => void;
-  stopTimer: () => void; // logs the worked segment
+  // Logs the worked segment. `endAt` (epoch ms) caps the logged end — used by the
+  // idle auto-stop to log only up to the last activity, not "now". Defaults to now.
+  stopTimer: (endAt?: number) => void;
   discardTimer: () => void; // stops without logging
   switchTask: () => void; // logs current, returns to picker
 
@@ -496,30 +498,30 @@ export const useStore = create<State>((set, get) => ({
     save(BREAK_KEY, null);
   },
 
-  stopTimer: () => {
+  stopTimer: (endAt?: number) => {
     const { timer, me } = get();
     if (!timer || !me) {
       set({ timer: null });
       save(TIMER_KEY, null);
       return;
     }
+    // Cap the end at `endAt` (idle auto-stop passes last-active), never before start.
+    const end = Math.max(timer.startedAt, endAt ?? Date.now());
     const task = get().taskById(timer.taskId);
     set({ timer: null });
     save(TIMER_KEY, null);
     // Frozen-date demo mode logs a single entry; real mode splits across midnight.
+    const mins = Math.max(1, Math.round((end - timer.startedAt) / 60000));
     const segments = isFrozenDate()
       ? [
           {
             date: todayISO(),
             start_time: hhmm(new Date(timer.startedAt)),
-            end_time: addMinutesToHHMM(
-              hhmm(new Date(timer.startedAt)),
-              minutesSince(timer.startedAt)
-            ),
-            minutes: minutesSince(timer.startedAt),
+            end_time: addMinutesToHHMM(hhmm(new Date(timer.startedAt)), mins),
+            minutes: mins,
           },
         ]
-      : splitInterval(timer.startedAt, Date.now());
+      : splitInterval(timer.startedAt, end);
     const rows = segments.map((s) => ({
       id: genId("tl"),
       user_id: me.id,

@@ -44,6 +44,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useQueryState } from "@/lib/useUrlState";
 
 type Columns = Record<Status, string[]>;
 
@@ -83,7 +84,7 @@ export default function BoardPage() {
   const moveTaskStatus = useStore((s) => s.moveTaskStatus);
   const reorderColumn = useStore((s) => s.reorderColumn);
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useQueryState("q", ""); // shareable in the URL
   // The board opens on your own cards — it's a working queue, not a report.
   // `currentUserId` only settles once the session and members have loaded, so
   // track it until someone picks a filter for themselves.
